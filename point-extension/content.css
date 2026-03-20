@@ -1,0 +1,362 @@
+/* ═══════════════════════════════════════════════════════════
+   Point v7 — Google Docs-style collaborative annotations
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Highlight marks on page ──────────────────────────────── */
+mark.point-hl {
+  border-radius: 2px;
+  cursor: pointer;
+  padding: 1px 0;
+  transition: background-color 0.15s;
+}
+mark.point-hl:hover {
+  filter: brightness(0.92);
+}
+
+/* ── Selection tooltip (just "@ Point" button) ────────────── */
+#point-tooltip {
+  position: absolute;
+  z-index: 2147483646;
+  background: #faf8f4;
+  border: 2.5px solid #222;
+  border-radius: 10px;
+  padding: 4px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.10);
+  animation: point-pop 0.12s ease-out;
+}
+#point-tooltip button {
+  all: unset;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  color: #222;
+  font-family: -apple-system, sans-serif;
+  border-radius: 6px;
+  transition: background 0.1s;
+}
+#point-tooltip button:hover { background: rgba(0,0,0,0.05); }
+
+/* ── Thread popup (Google Docs-style, on page) ────────────── */
+.point-thread-anchor {
+  position: relative;
+  z-index: 2147483645;
+}
+.point-thread {
+  position: absolute;
+  z-index: 2147483645;
+  width: 300px;
+  background: #faf8f4;
+  border: 2.5px solid #222;
+  border-radius: 14px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  color: #222;
+  overflow: hidden;
+  animation: point-pop 0.15s ease-out;
+}
+.point-thread-loading, .point-thread-empty {
+  padding: 20px;
+  text-align: center;
+  color: #bbb;
+}
+.point-thread-header {
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1.5px solid #eee;
+}
+.point-thread-author {
+  font-weight: 700;
+  font-size: 13px;
+}
+.point-thread-time {
+  font-size: 11px;
+  color: #bbb;
+  margin-left: auto;
+}
+.point-thread-delete {
+  all: unset;
+  cursor: pointer;
+  font-size: 16px;
+  color: #ccc;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: all 0.1s;
+}
+.point-thread-delete:hover { color: #e85d5d; background: rgba(232,93,93,0.08); }
+.point-thread-quote {
+  padding: 10px 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #555;
+  border-bottom: 1.5px solid #eee;
+  max-height: 100px;
+  overflow-y: auto;
+}
+.point-thread-comments {
+  max-height: 200px;
+  overflow-y: auto;
+}
+.point-thread-comment {
+  padding: 8px 14px;
+  border-bottom: 1px solid #f5f3ef;
+}
+.point-thread-comment-author {
+  font-weight: 700;
+  font-size: 12px;
+  margin-right: 4px;
+}
+.point-thread-comment-body {
+  font-size: 13px;
+  color: #333;
+}
+.point-thread-comment-time {
+  font-size: 10px;
+  color: #ccc;
+  margin-left: 6px;
+}
+.point-thread-input {
+  display: flex;
+  gap: 6px;
+  padding: 8px 10px;
+  border-top: 1.5px solid #eee;
+}
+.point-thread-input input {
+  flex: 1;
+  padding: 7px 10px;
+  font-size: 13px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  background: #fff;
+  color: #222;
+  outline: none;
+  font-family: -apple-system, sans-serif;
+}
+.point-thread-input input:focus { border-color: #222; }
+.point-thread-input input::placeholder { color: #bbb; }
+.point-thread-input button {
+  all: unset;
+  padding: 6px 10px;
+  font-size: 14px;
+  cursor: pointer;
+  color: #222;
+  border: 2px solid #222;
+  border-radius: 8px;
+  transition: all 0.1s;
+}
+.point-thread-input button:hover { background: #222; color: #faf8f4; }
+
+/* ── Bottom-right widget ──────────────────────────────────── */
+#point-widget {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 2147483647;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  color: #222;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  pointer-events: none;
+}
+#point-widget > * { pointer-events: auto; }
+
+/* FAB */
+#point-fab {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: #faf8f4;
+  border: 2.5px solid #222;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  font-weight: 800;
+  color: #222;
+  font-family: -apple-system, sans-serif;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.10);
+  transition: transform 0.15s, box-shadow 0.15s;
+  position: relative;
+}
+#point-fab:hover { transform: scale(1.05); box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+#point-fab .point-badge {
+  position: absolute; top: -4px; right: -4px;
+  min-width: 18px; height: 18px; border-radius: 9px;
+  background: #e85d5d; color: white;
+  font-size: 10px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 4px; border: 2px solid #faf8f4;
+}
+
+/* Panel */
+#point-panel {
+  position: fixed;
+  top: 16px; right: 16px; bottom: 84px;
+  width: 380px;
+  background: #faf8f4;
+  border: 2.5px solid #222;
+  border-radius: 20px;
+  box-shadow: 0 4px 30px rgba(0,0,0,0.12);
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+  animation: point-pop 0.2s ease-out;
+}
+#point-panel.open { display: flex; }
+
+#point-panel .pp-header {
+  padding: 16px 20px;
+  display: flex; align-items: center; gap: 12px;
+  border-bottom: 2.5px solid #222;
+  background: #faf8f4;
+  flex-shrink: 0; order: 1;
+}
+#point-panel .pp-header .pp-title {
+  font-size: 18px; font-weight: 800; flex: 1; color: #222;
+}
+#point-panel .pp-header button {
+  all: unset; cursor: pointer;
+  width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; color: #222; border: 2px solid #222;
+  transition: background 0.1s;
+}
+#point-panel .pp-header button:hover { background: rgba(0,0,0,0.05); }
+#point-panel .pp-header button.pp-logout-btn { color: #999; border-color: #ccc; }
+#point-panel .pp-header button.pp-logout-btn:hover { color: #e85d5d; border-color: #e85d5d; }
+
+#point-panel .pp-tabs {
+  display: flex; border-top: 2.5px solid #222;
+  flex-shrink: 0; order: 3;
+}
+#point-panel .pp-tab {
+  all: unset; flex: 1; padding: 12px 0; text-align: center;
+  font-size: 13px; font-weight: 700; cursor: pointer; color: #999;
+  border-top: 3px solid transparent; transition: all 0.12s;
+}
+#point-panel .pp-tab:hover { color: #555; }
+#point-panel .pp-tab.active { color: #222; border-top-color: #222; }
+
+#point-panel .pp-body {
+  flex: 1; overflow-y: auto; min-height: 0; order: 2;
+}
+
+/* ── Thread list rows ─────────────────────────────────────── */
+.pp-thread-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 20px; border-bottom: 1.5px solid #eee;
+  cursor: pointer; transition: background 0.1s;
+}
+.pp-thread-row:hover { background: #f5f3ef; }
+.pp-thread-info { flex: 1; min-width: 0; }
+.pp-thread-title { font-size: 14px; font-weight: 700; color: #222; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pp-thread-participants { font-size: 11px; color: #78b450; font-weight: 600; margin-top: 2px; }
+.pp-thread-preview { font-size: 12px; color: #999; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pp-thread-meta { text-align: right; flex-shrink: 0; }
+.pp-thread-time { font-size: 10px; color: #bbb; }
+
+/* ── Auth ─────────────────────────────────────────────────── */
+.pp-auth { padding: 40px 28px; text-align: center; }
+.pp-auth h3 { font-size: 22px; font-weight: 800; margin-bottom: 6px; }
+.pp-auth p { font-size: 14px; color: #888; margin-bottom: 24px; }
+.pp-auth input {
+  display: block; width: 100%; padding: 14px 18px; margin-bottom: 12px;
+  font-size: 15px; border: 2.5px solid #222; border-radius: 14px;
+  background: #fff; color: #222; outline: none; box-sizing: border-box;
+}
+.pp-auth input::placeholder { color: #bbb; }
+.pp-auth input:focus { box-shadow: 0 0 0 2px rgba(120,180,80,0.3); }
+.pp-auth button {
+  all: unset; display: block; width: 100%; padding: 14px;
+  font-size: 15px; font-weight: 700; text-align: center; cursor: pointer;
+  background: #222; color: #faf8f4; border-radius: 14px;
+  transition: opacity 0.1s; box-sizing: border-box;
+}
+.pp-auth button:hover { opacity: 0.85; }
+.pp-auth .pp-auth-error { color: #e85d5d; font-size: 12px; margin-bottom: 10px; }
+
+/* ── Section labels ───────────────────────────────────────── */
+.pp-section-label {
+  padding: 12px 22px 6px; font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.5px; color: #999;
+}
+
+/* ── Friends ──────────────────────────────────────────────── */
+.pp-friend-row {
+  display: flex; align-items: center; gap: 14px;
+  padding: 12px 22px; border-bottom: 1.5px solid #eee; transition: background 0.1s;
+}
+.pp-friend-row:hover { background: #f5f3ef; }
+.pp-friend-row .pp-fr-avatar, .pp-friend-request .pp-fr-avatar, .pp-friend-waiting .pp-fr-avatar {
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 2.5px solid #222; display: flex; align-items: center;
+  justify-content: center; font-size: 14px; font-weight: 800;
+  color: #222; background: #c8e6b4; flex-shrink: 0;
+}
+.pp-friend-row .pp-fr-name, .pp-friend-request .pp-fr-name, .pp-friend-waiting .pp-fr-name {
+  flex: 1; font-size: 14px; font-weight: 600;
+}
+.pp-friend-row .pp-fr-remove { all: unset; cursor: pointer; font-size: 16px; color: #ccc; transition: color 0.1s; }
+.pp-friend-row .pp-fr-remove:hover { color: #e85d5d; }
+
+.pp-add-friend {
+  display: flex; gap: 10px; padding: 16px 20px; border-bottom: 2.5px solid #222;
+}
+.pp-add-friend input {
+  flex: 1; padding: 12px 16px; font-size: 14px;
+  border: 2.5px solid #222; border-radius: 12px; background: #fff; color: #222; outline: none;
+}
+.pp-add-friend input::placeholder { color: #bbb; }
+.pp-add-friend button {
+  all: unset; padding: 12px 18px; font-size: 14px; font-weight: 700;
+  border: 2.5px solid #222; border-radius: 12px; cursor: pointer; color: #222; transition: all 0.1s;
+}
+.pp-add-friend button:hover { background: #222; color: #faf8f4; }
+
+.pp-friend-request {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 22px; border-bottom: 1.5px solid #eee; background: #f0f8ea;
+}
+.pp-friend-request .pp-fr-avatar { border-color: #78b450; }
+.pp-accept-btn {
+  all: unset; padding: 6px 14px; font-size: 12px; font-weight: 700;
+  border: 2px solid #78b450; border-radius: 10px; cursor: pointer; color: #78b450; transition: all 0.1s;
+}
+.pp-accept-btn:hover { background: #78b450; color: #fff; }
+.pp-reject-btn { all: unset; padding: 6px 8px; font-size: 14px; cursor: pointer; color: #ccc; transition: color 0.1s; }
+.pp-reject-btn:hover { color: #e85d5d; }
+
+.pp-friend-waiting {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 22px; border-bottom: 1.5px solid #eee; background: #fef9ee; border-left: 3px solid #f0c040;
+}
+.pp-friend-waiting .pp-fr-avatar { border-color: #f0c040; background: #fae6a0; }
+.pp-waiting-label {
+  font-size: 11px; font-weight: 600; color: #d4a020;
+  background: #fef3d0; padding: 3px 10px; border-radius: 8px;
+}
+
+/* ── Empty state ──────────────────────────────────────────── */
+.pp-empty { padding: 40px 28px; text-align: center; color: #bbb; font-size: 14px; line-height: 1.7; }
+
+/* ── Toast ────────────────────────────────────────────────── */
+#point-toast {
+  position: fixed; bottom: 84px; right: 20px; z-index: 2147483647;
+  background: #faf8f4; border: 2.5px solid #222; border-radius: 14px;
+  padding: 12px 16px; max-width: 300px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+  font-family: -apple-system, sans-serif; font-size: 13px; color: #222;
+  display: none; animation: point-pop 0.2s ease-out;
+}
+#point-toast.show { display: block; }
+
+@keyframes point-pop {
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}

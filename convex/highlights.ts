@@ -126,17 +126,17 @@ export const allPages = query({
       Object.values(urlMap)
         .sort((a, b) => b.lastTime - a.lastTime)
         .map(async (p) => {
-          const names: string[] = [];
+          const participants: { username: string; color: string }[] = [];
           for (const uid of p.participants) {
             const u = await ctx.db.get(uid as any);
-            if (u) names.push(u.username);
+            if (u) participants.push({ username: u.username, color: u.color || "#999" });
           }
           return {
             url: p.url,
             pageTitle: p.pageTitle,
             highlightCount: p.highlightCount,
             lastTime: p.lastTime,
-            participants: names,
+            participants,
           };
         })
     );

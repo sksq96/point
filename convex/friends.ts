@@ -70,7 +70,7 @@ export const pendingRequests = query({
     const requests = await ctx.db.query("friends").withIndex("by_to_user", (q) => q.eq("toUserId", user._id).eq("status", "pending")).collect();
     return await Promise.all(requests.map(async (r) => {
       const from = await ctx.db.get(r.fromUserId);
-      return { id: r._id, fromUsername: from?.username ?? "unknown", createdAt: r._creationTime };
+      return { id: r._id, fromUsername: from?.username ?? "unknown", color: from?.color || "#999", createdAt: r._creationTime };
     }));
   },
 });
@@ -85,7 +85,7 @@ export const sentRequests = query({
     const sent = await ctx.db.query("friends").withIndex("by_from_user", (q) => q.eq("fromUserId", user._id).eq("status", "pending")).collect();
     return await Promise.all(sent.map(async (r) => {
       const to = await ctx.db.get(r.toUserId!);
-      return { id: r._id, toUsername: to?.username ?? "unknown", createdAt: r._creationTime };
+      return { id: r._id, toUsername: to?.username ?? "unknown", color: to?.color || "#999", createdAt: r._creationTime };
     }));
   },
 });
@@ -99,7 +99,7 @@ export const list = query({
     const accepted = await ctx.db.query("friends").withIndex("by_from_user", (q) => q.eq("fromUserId", user._id).eq("status", "accepted")).collect();
     const friends = await Promise.all(accepted.map(async (f) => {
       const friend = await ctx.db.get(f.toUserId);
-      return friend ? { id: friend._id, username: friend.username } : null;
+      return friend ? { id: friend._id, username: friend.username, color: friend.color } : null;
     }));
     return friends.filter(Boolean);
   },

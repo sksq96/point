@@ -120,6 +120,27 @@ export const forPage = query({
   },
 });
 
+export const unread = query({
+  args: { token: v.string() },
+  handler: async (ctx, { token }) => {
+    const user = await ctx.db.query("users").withIndex("by_token", (q) => q.eq("token", token)).first();
+    if (!user) return [];
+    const points = await ctx.db.query("points").withIndex("by_to_user", (q) => q.eq("toUserId", user._id)).order("desc").collect();
+    const unread = points.filter(p => !p.isRead);
+    return await Promise.all(unread.slice(0, 10).map(async (p) => {
+      const from = await ctx.db.get(p.fromUserId);
+      return {
+        id: p._id,
+        fromUsername: from?.username ?? "unknown",
+        text: p.text,
+        url: p.url,
+        color: p.color,
+        createdAt: p._creationTime,
+      };
+    }));
+  },
+});
+
 export const markRead = mutation({
   args: { token: v.string(), pointId: v.id("points") },
   handler: async (ctx, { token, pointId }) => {

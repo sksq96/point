@@ -1,6 +1,10 @@
 /* ═══════════════════════════════════════════════════════════
-   Point v7 — Google Docs-style collaborative annotations
+   Point v7 — collaborative annotations (light mode)
    ═══════════════════════════════════════════════════════════ */
+:root {
+  --point-accent: #4a7c6f;
+  --point-accent-bg: #4a7c6f20;
+}
 
 /* ── Highlight marks on page ──────────────────────────────── */
 mark.point-hl {
@@ -10,10 +14,10 @@ mark.point-hl {
   transition: background-color 0.15s;
 }
 mark.point-hl:hover {
-  filter: brightness(0.92);
+  filter: brightness(1.1);
 }
 
-/* ── Selection tooltip (just "@ Point" button) ────────────── */
+/* ── Selection tooltip (friend picker) ────────────────────── */
 #point-tooltip {
   position: absolute;
   z-index: 2147483646;
@@ -21,6 +25,9 @@ mark.point-hl:hover {
   border: 2.5px solid #222;
   border-radius: 10px;
   padding: 4px;
+  min-width: 150px;
+  max-height: 260px;
+  overflow-y: auto;
   box-shadow: 0 2px 12px rgba(0,0,0,0.10);
   animation: point-pop 0.12s ease-out;
 }
@@ -36,16 +43,46 @@ mark.point-hl:hover {
   transition: background 0.1s;
 }
 #point-tooltip button:hover { background: rgba(0,0,0,0.05); }
-
-/* ── Thread popup (Google Docs-style, on page) ────────────── */
-.point-thread-anchor {
-  position: relative;
-  z-index: 2147483645;
+.point-tooltip-header {
+  padding: 6px 14px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #999;
+  font-family: -apple-system, sans-serif;
 }
+.point-tooltip-friend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background 0.1s;
+  border-radius: 6px;
+  margin: 1px 4px;
+}
+.point-tooltip-friend:hover { background: rgba(0,0,0,0.05); }
+.point-tooltip-avatar {
+  width: 24px; height: 24px; border-radius: 50%;
+  border: 2px solid #ccc; display: flex; align-items: center;
+  justify-content: center; font-size: 11px; font-weight: 800;
+  color: #222; flex-shrink: 0; font-family: -apple-system, sans-serif;
+}
+.point-tooltip-name {
+  font-size: 13px; font-weight: 600; color: #222;
+  font-family: -apple-system, sans-serif;
+}
+.point-tooltip-empty {
+  padding: 8px 14px; font-size: 12px; color: #bbb;
+  font-family: -apple-system, sans-serif;
+}
+
+/* ── Thread popup (floating, draggable) ───────────────────── */
 .point-thread {
   position: absolute;
   z-index: 2147483645;
-  width: 300px;
+  width: 380px;
   background: #faf8f4;
   border: 2.5px solid #222;
   border-radius: 14px;
@@ -55,7 +92,21 @@ mark.point-hl:hover {
   color: #222;
   overflow: hidden;
   animation: point-pop 0.15s ease-out;
+  display: flex;
+  flex-direction: column;
+  max-height: 500px;
 }
+.point-thread-drag {
+  text-align: center;
+  font-size: 14px;
+  color: #ccc;
+  padding: 4px 0 0;
+  cursor: grab;
+  user-select: none;
+  letter-spacing: 2px;
+  line-height: 1;
+}
+.point-thread-drag:hover { color: #999; }
 .point-thread-loading, .point-thread-empty {
   padding: 20px;
   text-align: center;
@@ -93,12 +144,13 @@ mark.point-hl:hover {
   line-height: 1.5;
   color: #555;
   border-bottom: 1.5px solid #eee;
-  max-height: 100px;
+  max-height: 300px;
   overflow-y: auto;
 }
 .point-thread-comments {
-  max-height: 200px;
+  max-height: 400px;
   overflow-y: auto;
+  flex: 1;
 }
 .point-thread-comment {
   padding: 8px 14px;
@@ -123,6 +175,7 @@ mark.point-hl:hover {
   gap: 6px;
   padding: 8px 10px;
   border-top: 1.5px solid #eee;
+  margin-top: auto;
 }
 .point-thread-input input {
   flex: 1;
@@ -185,20 +238,20 @@ mark.point-hl:hover {
   position: relative;
 }
 #point-fab:hover { transform: scale(1.05); box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
-#point-fab .point-badge {
-  position: absolute; top: -4px; right: -4px;
-  min-width: 18px; height: 18px; border-radius: 9px;
-  background: #e85d5d; color: white;
-  font-size: 10px; font-weight: 700;
-  display: flex; align-items: center; justify-content: center;
-  padding: 0 4px; border: 2px solid #faf8f4;
+#point-fab.hidden { display: none; }
+#point-fab .point-notif-dot {
+  position: absolute; top: -2px; right: -2px;
+  width: 12px; height: 12px; border-radius: 50%;
+  background: #e85d5d;
+  border: 2px solid #faf8f4;
 }
 
 /* Panel */
 #point-panel {
   position: fixed;
-  top: 16px; right: 16px; bottom: 84px;
+  bottom: 80px; right: 16px;
   width: 380px;
+  height: 720px;
   background: #faf8f4;
   border: 2.5px solid #222;
   border-radius: 20px;
@@ -209,26 +262,47 @@ mark.point-hl:hover {
   animation: point-pop 0.2s ease-out;
 }
 #point-panel.open { display: flex; }
+#point-panel *, #point-panel *::before, #point-panel *::after {
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif !important;
+}
+
+/* Panel drag handle — hidden, header is the drag target */
+.pp-drag-handle {
+  display: none;
+}
+
+/* Panel resize handle */
+.pp-resize-handle {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+  z-index: 1;
+}
+.pp-resize-handle:hover { background: rgba(0,0,0,0.03); }
 
 #point-panel .pp-header {
-  padding: 16px 20px;
-  display: flex; align-items: center; gap: 12px;
-  border-bottom: 2.5px solid #222;
-  background: #faf8f4;
+  padding: 4px 10px;
+  display: flex; align-items: center; gap: 6px;
+  border-bottom: 1px solid #ddd;
+  background: #f2f0ec;
   flex-shrink: 0; order: 1;
+  cursor: grab; user-select: none;
 }
 #point-panel .pp-header .pp-title {
-  font-size: 18px; font-weight: 800; flex: 1; color: #222;
+  font-size: 11px; font-weight: 700; flex: 1; color: #999;
 }
 #point-panel .pp-header button {
   all: unset; cursor: pointer;
-  width: 32px; height: 32px; border-radius: 50%;
+  width: 18px; height: 18px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  font-size: 15px; color: #222; border: 2px solid #222;
-  transition: background 0.1s;
+  font-size: 10px; color: #999; border: 1px solid #ccc;
+  transition: all 0.1s;
 }
-#point-panel .pp-header button:hover { background: rgba(0,0,0,0.05); }
-#point-panel .pp-header button.pp-logout-btn { color: #999; border-color: #ccc; }
+#point-panel .pp-header button:hover { background: rgba(0,0,0,0.05); color: #222; }
+#point-panel .pp-header button.pp-logout-btn { color: #bbb; border-color: #ddd; }
 #point-panel .pp-header button.pp-logout-btn:hover { color: #e85d5d; border-color: #e85d5d; }
 
 #point-panel .pp-tabs {
@@ -241,10 +315,11 @@ mark.point-hl:hover {
   border-top: 3px solid transparent; transition: all 0.12s;
 }
 #point-panel .pp-tab:hover { color: #555; }
-#point-panel .pp-tab.active { color: #222; border-top-color: #222; }
+#point-panel .pp-tab.active { color: #222; border-top-color: var(--point-accent); }
 
 #point-panel .pp-body {
   flex: 1; overflow-y: auto; min-height: 0; order: 2;
+  display: flex; flex-direction: column;
 }
 
 /* ── Thread list rows ─────────────────────────────────────── */
@@ -256,30 +331,40 @@ mark.point-hl:hover {
 .pp-thread-row:hover { background: #f5f3ef; }
 .pp-thread-info { flex: 1; min-width: 0; }
 .pp-thread-title { font-size: 14px; font-weight: 700; color: #222; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pp-thread-participants { font-size: 11px; color: #78b450; font-weight: 600; margin-top: 2px; }
+.pp-thread-participants { font-size: 11px; color: var(--point-accent); font-weight: 600; margin-top: 2px; }
 .pp-thread-preview { font-size: 12px; color: #999; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pp-thread-meta { text-align: right; flex-shrink: 0; }
 .pp-thread-time { font-size: 10px; color: #bbb; }
 
 /* ── Auth ─────────────────────────────────────────────────── */
-.pp-auth { padding: 40px 28px; text-align: center; }
-.pp-auth h3 { font-size: 22px; font-weight: 800; margin-bottom: 6px; }
-.pp-auth p { font-size: 14px; color: #888; margin-bottom: 24px; }
+.pp-auth {
+  padding: 24px 24px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  flex: 1; text-align: center;
+}
+.pp-auth h3 {
+  font-size: 16px; font-weight: 600; margin-bottom: 4px; color: #222;
+  font-family: "Georgia", "Times New Roman", serif;
+  letter-spacing: 0.5px;
+}
+.pp-auth p { font-size: 13px; color: #999; margin-bottom: 20px; }
 .pp-auth input {
-  display: block; width: 100%; padding: 14px 18px; margin-bottom: 12px;
-  font-size: 15px; border: 2.5px solid #222; border-radius: 14px;
+  display: block; width: 100%; padding: 11px 16px; margin-bottom: 10px;
+  font-size: 14px; border: 1.5px solid #ddd; border-radius: 10px;
   background: #fff; color: #222; outline: none; box-sizing: border-box;
+  font-family: -apple-system, sans-serif;
 }
 .pp-auth input::placeholder { color: #bbb; }
-.pp-auth input:focus { box-shadow: 0 0 0 2px rgba(120,180,80,0.3); }
+.pp-auth input:focus { border-color: #999; }
 .pp-auth button {
-  all: unset; display: block; width: 100%; padding: 14px;
-  font-size: 15px; font-weight: 700; text-align: center; cursor: pointer;
-  background: #222; color: #faf8f4; border-radius: 14px;
+  all: unset; display: block; width: 100%; padding: 11px;
+  font-size: 14px; font-weight: 600; text-align: center; cursor: pointer;
+  background: #222; color: #faf8f4; border-radius: 10px;
   transition: opacity 0.1s; box-sizing: border-box;
+  margin-top: 4px;
 }
 .pp-auth button:hover { opacity: 0.85; }
-.pp-auth .pp-auth-error { color: #e85d5d; font-size: 12px; margin-bottom: 10px; }
+.pp-auth .pp-auth-error { color: #e85d5d; font-size: 12px; margin-bottom: 8px; }
 
 /* ── Section labels ───────────────────────────────────────── */
 .pp-section-label {
@@ -297,7 +382,7 @@ mark.point-hl:hover {
   width: 34px; height: 34px; border-radius: 50%;
   border: 2.5px solid #222; display: flex; align-items: center;
   justify-content: center; font-size: 14px; font-weight: 800;
-  color: #222; background: #c8e6b4; flex-shrink: 0;
+  color: #222; background: var(--point-accent-bg); flex-shrink: 0;
 }
 .pp-friend-row .pp-fr-name, .pp-friend-request .pp-fr-name, .pp-friend-waiting .pp-fr-name {
   flex: 1; font-size: 14px; font-weight: 600;
@@ -321,14 +406,14 @@ mark.point-hl:hover {
 
 .pp-friend-request {
   display: flex; align-items: center; gap: 10px;
-  padding: 12px 22px; border-bottom: 1.5px solid #eee; background: #f0f8ea;
+  padding: 12px 22px; border-bottom: 1.5px solid #eee; background: var(--point-accent-bg);
 }
-.pp-friend-request .pp-fr-avatar { border-color: #78b450; }
+.pp-friend-request .pp-fr-avatar { border-color: var(--point-accent); }
 .pp-accept-btn {
   all: unset; padding: 6px 14px; font-size: 12px; font-weight: 700;
-  border: 2px solid #78b450; border-radius: 10px; cursor: pointer; color: #78b450; transition: all 0.1s;
+  border: 2px solid var(--point-accent); border-radius: 10px; cursor: pointer; color: var(--point-accent); transition: all 0.1s;
 }
-.pp-accept-btn:hover { background: #78b450; color: #fff; }
+.pp-accept-btn:hover { background: var(--point-accent); color: #fff; }
 .pp-reject-btn { all: unset; padding: 6px 8px; font-size: 14px; cursor: pointer; color: #ccc; transition: color 0.1s; }
 .pp-reject-btn:hover { color: #e85d5d; }
 
@@ -355,6 +440,34 @@ mark.point-hl:hover {
   display: none; animation: point-pop 0.2s ease-out;
 }
 #point-toast.show { display: block; }
+
+/* ── Page presence banner ─────────────────────────────────── */
+#point-presence {
+  position: fixed;
+  top: 12px; right: 80px;
+  z-index: 2147483646;
+  display: flex; align-items: center; gap: 6px;
+  background: #faf8f4;
+  border: 1.5px solid #ddd;
+  border-radius: 20px;
+  padding: 5px 14px 5px 10px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 12px;
+  animation: point-pop 0.2s ease-out;
+}
+.point-presence-name {
+  font-weight: 600; cursor: pointer;
+  transition: opacity 0.1s;
+}
+.point-presence-name:hover { opacity: 0.7; }
+
+/* ── Reset site CSS leaking into Point UI ─────────────────── */
+#point-tooltip *, .point-thread *, #point-toast * {
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif !important;
+}
 
 @keyframes point-pop {
   from { opacity: 0; transform: translateY(8px) scale(0.97); }

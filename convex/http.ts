@@ -17,9 +17,7 @@ const allPaths = [
   "/friends/pending", "/friends/pending-count", "/friends/sent", "/friends/remove",
   "/highlights/create", "/highlights/remove", "/highlights/page", "/highlights/pages",
   "/comments/add", "/comments/list", "/comments/remove",
-  // Legacy
-  "/messages/point", "/messages/chat", "/messages/feed", "/messages/feed-by-url",
-  "/messages/threads", "/messages/unread", "/messages/read", "/messages/read-all",
+  "/points/send", "/points/unread", "/points/read",
 ];
 for (const path of allPaths) {
   http.route({ path, method: "OPTIONS", handler: httpAction(async () => new Response(null, { status: 204, headers: cors() })) });
@@ -84,6 +82,19 @@ http.route({ path: "/highlights/pages", method: "GET", handler: httpAction(async
   return json(await ctx.runQuery(api.highlights.allPages, { token }));
 })});
 
+// ── Points (notifications)
+http.route({ path: "/points/send", method: "POST", handler: httpAction(async (ctx, req) => {
+  try { const token = req.headers.get("Authorization")?.replace("Bearer ", "") ?? ""; const b = await req.json(); return json(await ctx.runMutation(api.points.send, { token, ...b })); } catch (e: any) { return json({ error: e.message }, 400); }
+})});
+
+http.route({ path: "/points/unread", method: "GET", handler: httpAction(async (ctx, req) => {
+  const token = req.headers.get("Authorization")?.replace("Bearer ", "") ?? "";
+  return json(await ctx.runQuery(api.points.unread, { token }));
+})});
+http.route({ path: "/points/read", method: "POST", handler: httpAction(async (ctx, req) => {
+  try { const token = req.headers.get("Authorization")?.replace("Bearer ", "") ?? ""; const { pointId } = await req.json(); return json(await ctx.runMutation(api.points.markRead, { token, pointId })); } catch (e: any) { return json({ error: e.message }, 400); }
+})});
+
 // ── Comments
 http.route({ path: "/comments/add", method: "POST", handler: httpAction(async (ctx, req) => {
   try { const token = req.headers.get("Authorization")?.replace("Bearer ", "") ?? ""; const b = await req.json(); return json(await ctx.runMutation(api.comments.add, { token, ...b })); } catch (e: any) { return json({ error: e.message }, 400); }
@@ -94,36 +105,6 @@ http.route({ path: "/comments/list", method: "POST", handler: httpAction(async (
 })});
 http.route({ path: "/comments/remove", method: "POST", handler: httpAction(async (ctx, req) => {
   try { const token = req.headers.get("Authorization")?.replace("Bearer ", "") ?? ""; const { commentId } = await req.json(); return json(await ctx.runMutation(api.comments.remove, { token, commentId })); } catch (e: any) { return json({ error: e.message }, 400); }
-})});
-
-// ── Legacy messages (keep for backward compat)
-http.route({ path: "/messages/feed", method: "GET", handler: httpAction(async (ctx, req) => {
-  const token = req.headers.get("Authorization")?.replace("Bearer ", "") ?? "";
-  return json(await ctx.runQuery(api.messages.feed, { token }));
-})});
-http.route({ path: "/messages/threads", method: "GET", handler: httpAction(async (ctx, req) => {
-  const token = req.headers.get("Authorization")?.replace("Bearer ", "") ?? "";
-  return json(await ctx.runQuery(api.messages.threads, { token }));
-})});
-http.route({ path: "/messages/unread", method: "GET", handler: httpAction(async (ctx, req) => {
-  const token = req.headers.get("Authorization")?.replace("Bearer ", "") ?? "";
-  return json(await ctx.runQuery(api.messages.unreadCount, { token }));
-})});
-http.route({ path: "/messages/feed-by-url", method: "POST", handler: httpAction(async (ctx, req) => {
-  const token = req.headers.get("Authorization")?.replace("Bearer ", "") ?? ""; const { url } = await req.json();
-  return json(await ctx.runQuery(api.messages.feedByUrl, { token, url }));
-})});
-http.route({ path: "/messages/point", method: "POST", handler: httpAction(async (ctx, req) => {
-  try { const token = req.headers.get("Authorization")?.replace("Bearer ", "") ?? ""; const b = await req.json(); return json(await ctx.runMutation(api.messages.sendPoint, { token, ...b })); } catch (e: any) { return json({ error: e.message }, 400); }
-})});
-http.route({ path: "/messages/chat", method: "POST", handler: httpAction(async (ctx, req) => {
-  try { const token = req.headers.get("Authorization")?.replace("Bearer ", "") ?? ""; const b = await req.json(); return json(await ctx.runMutation(api.messages.sendChat, { token, ...b })); } catch (e: any) { return json({ error: e.message }, 400); }
-})});
-http.route({ path: "/messages/read", method: "POST", handler: httpAction(async (ctx, req) => {
-  try { const token = req.headers.get("Authorization")?.replace("Bearer ", "") ?? ""; const { messageId } = await req.json(); return json(await ctx.runMutation(api.messages.markRead, { token, messageId })); } catch (e: any) { return json({ error: e.message }, 400); }
-})});
-http.route({ path: "/messages/read-all", method: "POST", handler: httpAction(async (ctx, req) => {
-  try { const token = req.headers.get("Authorization")?.replace("Bearer ", "") ?? ""; return json(await ctx.runMutation(api.messages.markAllRead, { token })); } catch (e: any) { return json({ error: e.message }, 400); }
 })});
 
 export default http;

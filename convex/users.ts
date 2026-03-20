@@ -2,8 +2,9 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
 const USER_COLORS = [
-  "#8bc49e", "#7baed4", "#c49eb8", "#a3c47b", "#9bb4d6",
-  "#d4a87b", "#7bc4b8", "#b89ec4", "#c4b87b", "#7b9ec4",
+  "#4a7c6f", "#7baed4", "#c27c6b", "#6b8f71", "#b8926a",
+  "#5b8a9a", "#c49eb8", "#8b6e5a", "#3d7a7a", "#d4856a",
+  "#6a7f4e", "#9a7eb4", "#c4a24d", "#5a6e8a", "#b56d7a",
 ];
 
 function generateToken() {

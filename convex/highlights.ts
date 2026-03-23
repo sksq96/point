@@ -1,7 +1,16 @@
 import { v } from "convex/values";
+import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
+import { getAcceptedFriendIds } from "./helpers";
 
-// Create a highlight (server-side, visible to friends)
+type PageAgg = {
+  url: string;
+  pageTitle: string;
+  highlightCount: number;
+  lastTime: number;
+  participants: Set<Id<"users">>;
+};
+
 export const create = mutation({
   args: {
     token: v.string(),
@@ -31,7 +40,6 @@ export const create = mutation({
   },
 });
 
-// Delete a highlight
 export const remove = mutation({
   args: { token: v.string(), highlightId: v.id("highlights") },
   handler: async (ctx, { token, highlightId }) => {
@@ -39,7 +47,6 @@ export const remove = mutation({
     if (!user) throw new Error("Not authenticated");
     const h = await ctx.db.get(highlightId);
     if (!h || h.userId !== user._id) throw new Error("Not your highlight");
-    // Delete all comments on this highlight
     const comments = await ctx.db.query("comments").withIndex("by_highlight", (q) => q.eq("highlightId", highlightId)).collect();
     for (const c of comments) await ctx.db.delete(c._id);
     await ctx.db.delete(highlightId);
@@ -47,26 +54,18 @@ export const remove = mutation({
   },
 });
 
-// Get all highlights for a URL (from user + friends)
 export const forPage = query({
   args: { token: v.string(), url: v.string() },
   handler: async (ctx, { token, url }) => {
     const user = await ctx.db.query("users").withIndex("by_token", (q) => q.eq("token", token)).first();
     if (!user) return [];
 
-    // Get friend IDs
-    const friendships = await ctx.db.query("friends").withIndex("by_from_user", (q) => q.eq("fromUserId", user._id).eq("status", "accepted")).collect();
-    const friendIds = new Set(friendships.map(f => f.toUserId!.toString()));
-    friendIds.add(user._id.toString()); // include self
+    const friendIds = await getAcceptedFriendIds(ctx, user._id);
 
-    // Get all highlights on this URL
     const allHighlights = await ctx.db.query("highlights").withIndex("by_url", (q) => q.eq("url", url)).collect();
+    const visible = allHighlights.filter((h) => friendIds.has(h.userId));
 
-    // Filter to self + friends
-    const visible = allHighlights.filter(h => friendIds.has(h.userId.toString()));
-
-    // Get comment counts
-    return await Promise.all(visible.map(async (h) => {
+    return Promise.all(visible.map(async (h) => {
       const author = await ctx.db.get(h.userId);
       const comments = await ctx.db.query("comments").withIndex("by_highlight", (q) => q.eq("highlightId", h._id)).collect();
       return {
@@ -87,48 +86,37 @@ export const forPage = query({
   },
 });
 
-// Get all pages with highlights (for conversation list)
 export const allPages = query({
   args: { token: v.string() },
   handler: async (ctx, { token }) => {
     const user = await ctx.db.query("users").withIndex("by_token", (q) => q.eq("token", token)).first();
     if (!user) return [];
 
-    const friendships = await ctx.db.query("friends").withIndex("by_from_user", (q) => q.eq("fromUserId", user._id).eq("status", "accepted")).collect();
-    const friendIds = new Set(friendships.map(f => f.toUserId!.toString()));
-    friendIds.add(user._id.toString());
+    const friendIds = await getAcceptedFriendIds(ctx, user._id);
 
-    // Get my highlights + friends' highlights
-    const myHighlights = await ctx.db.query("highlights").withIndex("by_user", (q) => q.eq("userId", user._id)).collect();
-
-    // Get friend highlights (need to iterate friends)
-    const friendHighlights: any[] = [];
-    for (const fId of friendIds) {
-      if (fId === user._id.toString()) continue;
-      const fh = await ctx.db.query("highlights").withIndex("by_user", (q) => q.eq("userId", fId as any)).collect();
-      friendHighlights.push(...fh);
+    const all: Doc<"highlights">[] = [];
+    for (const uid of friendIds) {
+      const list = await ctx.db.query("highlights").withIndex("by_user", (q) => q.eq("userId", uid)).collect();
+      all.push(...list);
     }
 
-    const all = [...myHighlights, ...friendHighlights];
-
-    // Group by URL
-    const urlMap: Record<string, { url: string; pageTitle: string; highlightCount: number; lastTime: number; participants: Set<string> }> = {};
+    const urlMap: Record<string, PageAgg> = {};
     for (const h of all) {
       if (!urlMap[h.url]) urlMap[h.url] = { url: h.url, pageTitle: "", highlightCount: 0, lastTime: 0, participants: new Set() };
       const entry = urlMap[h.url];
       entry.highlightCount++;
       if (h._creationTime > entry.lastTime) entry.lastTime = h._creationTime;
       if (h.pageTitle) entry.pageTitle = h.pageTitle;
-      entry.participants.add(h.userId.toString());
+      entry.participants.add(h.userId);
     }
 
-    const pages = await Promise.all(
+    return Promise.all(
       Object.values(urlMap)
         .sort((a, b) => b.lastTime - a.lastTime)
         .map(async (p) => {
           const participants: { username: string; color: string }[] = [];
           for (const uid of p.participants) {
-            const u = await ctx.db.get(uid as any);
+            const u = await ctx.db.get(uid);
             if (u) participants.push({ username: u.username, color: u.color || "#999" });
           }
           return {
@@ -138,8 +126,7 @@ export const allPages = query({
             lastTime: p.lastTime,
             participants,
           };
-        })
+        }),
     );
-    return pages;
   },
 });

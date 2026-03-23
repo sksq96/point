@@ -1,11 +1,17 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { canUserSeeHighlight } from "./helpers";
 
 export const add = mutation({
   args: { token: v.string(), highlightId: v.id("highlights"), body: v.string() },
   handler: async (ctx, { token, highlightId, body }) => {
     const user = await ctx.db.query("users").withIndex("by_token", (q) => q.eq("token", token)).first();
     if (!user) throw new Error("Not authenticated");
+    const highlight = await ctx.db.get(highlightId);
+    if (!highlight) throw new Error("Highlight not found");
+    if (!(await canUserSeeHighlight(ctx, user._id, highlight.userId))) {
+      throw new Error("Can't comment on this highlight");
+    }
     const id = await ctx.db.insert("comments", { highlightId, userId: user._id, body });
     return { id, username: user.username, color: user.color };
   },
@@ -17,8 +23,12 @@ export const forHighlight = query({
     const user = await ctx.db.query("users").withIndex("by_token", (q) => q.eq("token", token)).first();
     if (!user) return [];
 
+    const highlight = await ctx.db.get(highlightId);
+    if (!highlight) return [];
+    if (!(await canUserSeeHighlight(ctx, user._id, highlight.userId))) return [];
+
     const comments = await ctx.db.query("comments").withIndex("by_highlight", (q) => q.eq("highlightId", highlightId)).collect();
-    return await Promise.all(comments.map(async (c) => {
+    return Promise.all(comments.map(async (c) => {
       const author = await ctx.db.get(c.userId);
       return {
         id: c._id,

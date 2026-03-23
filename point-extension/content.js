@@ -4,7 +4,10 @@
 (() => {
   "use strict";
 
-  const API = "https://hidden-warbler-881.convex.site";
+  const DEFAULT_API_BASE = "https://hidden-warbler-881.convex.site";
+  let apiBase = null;
+  let apiBaseLoadPromise = null;
+
   const PAGE_URL = location.href.split("#")[0];
 
   let panelOpen = false;
@@ -20,6 +23,20 @@
     try { chrome.runtime.sendMessage(msg, (r) => { if (chrome.runtime.lastError) { contextValid = false; return; } if (cb) cb(r); }); } catch { contextValid = false; }
   }
 
+  async function loadApiBase() {
+    if (apiBase !== null) return;
+    if (!apiBaseLoadPromise) {
+      apiBaseLoadPromise = new Promise((resolve) => {
+        sendMsg({ type: "GET_API_BASE" }, (r) => {
+          const u = r?.url;
+          apiBase = (typeof u === "string" ? u : DEFAULT_API_BASE).replace(/\/+$/, "");
+          resolve();
+        });
+      });
+    }
+    await apiBaseLoadPromise;
+  }
+
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
   function escapeHtml(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
   function timeAgo(d) {
@@ -29,9 +46,10 @@
   }
 
   async function apiCall(path, opts = {}) {
+    await loadApiBase();
     const headers = { "Content-Type": "application/json" };
     if (auth?.token) headers["Authorization"] = `Bearer ${auth.token}`;
-    const res = await fetch(`${API}${path}`, { ...opts, headers });
+    const res = await fetch(`${apiBase}${path}`, { ...opts, headers });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "request failed");
     return data;
@@ -481,15 +499,37 @@
       updateLogout();
       panel.querySelectorAll(".pp-tab").forEach(tab => tab.classList.toggle("active", tab.dataset.tab === "pages"));
       if (!auth) renderAuth(); else renderPages();
-      startLivePoll();
-    } else { stopLivePoll(); }
+      ensureAuthPollTimer();
+    }
   }
   function switchTab(t) { panel.querySelectorAll(".pp-tab").forEach(tab => tab.classList.toggle("active", tab.dataset.tab === t)); if (t === "pages") renderPages(); else renderFriends(); }
   function updateLogout() { if (panel) { const b = panel.querySelector('[data-action="logout"]'); if (b) b.style.display = auth ? "" : "none"; } }
   function updateBadge() { /* replaced by showNotifDot */ }
 
-  function startLivePoll() { stopLivePoll(); livePollTimer = setInterval(() => { if (panelOpen && auth) { const t = panel?.querySelector(".pp-tab.active")?.dataset.tab; if (t === "pages") renderPages(); else renderFriends(); } if (auth) { loadPageHighlights(); pollNotifications(); refreshActiveThread(); } }, 4000); }
-  function stopLivePoll() { if (livePollTimer) { clearInterval(livePollTimer); livePollTimer = null; } }
+  function authPollTick() {
+    if (!auth) return;
+    if (panelOpen) {
+      const t = panel?.querySelector(".pp-tab.active")?.dataset.tab;
+      if (t === "pages") renderPages();
+      else renderFriends();
+    }
+    loadPageHighlights();
+    pollNotifications();
+    refreshActiveThread();
+  }
+
+  /** Single interval while logged in (avoids duplicate timers with panel open). Cleared on logout only. */
+  function ensureAuthPollTimer() {
+    if (!auth || livePollTimer) return;
+    livePollTimer = setInterval(authPollTick, 4000);
+  }
+
+  function stopAuthPollTimer() {
+    if (livePollTimer) {
+      clearInterval(livePollTimer);
+      livePollTimer = null;
+    }
+  }
 
   // ── Toast notifications ─────────────────────────────────────────
   let seenPointIds = null; // null = first poll (seed only, no toasts)
@@ -549,7 +589,17 @@
     } catch {}
   }
 
-  function doLogout() { auth = null; friends = []; seenPointIds = null; seenPendingCount = -1; sendMsg({ type: "CLEAR_AUTH" }); showNotifDot(false); updateLogout(); renderAuth(); }
+  function doLogout() {
+    stopAuthPollTimer();
+    auth = null;
+    friends = [];
+    seenPointIds = null;
+    seenPendingCount = -1;
+    sendMsg({ type: "CLEAR_AUTH" });
+    showNotifDot(false);
+    updateLogout();
+    renderAuth();
+  }
 
   // ── Auth ─────────────────────────────────────────────────────────
   function renderAuth() {
@@ -578,6 +628,7 @@
       auth = { user: data.user, token: data.token };
       sendMsg({ type: "SET_AUTH", auth }); panel.querySelector(".pp-tabs").style.display = "flex";
       updateLogout(); applyUserColor(); loadFriends(); loadPageHighlights(); renderPages();
+      ensureAuthPollTimer();
     } catch (e) { err.textContent = e.message; err.style.display = "block"; }
   }
 
@@ -687,16 +738,20 @@
     document.documentElement.style.setProperty("--point-accent-bg", c + "20");
   }
 
-  sendMsg({ type: "GET_AUTH" }, (saved) => {
-    if (saved?.token) {
-      auth = saved;
-      loadFriends();
-      loadPageHighlights();
-      applyUserColor();
-      pollNotifications();
-      setInterval(() => { loadPageHighlights(); pollNotifications(); refreshActiveThread(); }, 4000);
-    }
-  });
+  async function init() {
+    await loadApiBase();
+    sendMsg({ type: "GET_AUTH" }, (saved) => {
+      if (saved?.token) {
+        auth = saved;
+        loadFriends();
+        loadPageHighlights();
+        applyUserColor();
+        pollNotifications();
+        ensureAuthPollTimer();
+      }
+    });
+    createWidget();
+  }
 
-  createWidget();
+  init();
 })();

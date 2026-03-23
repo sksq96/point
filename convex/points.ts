@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { getAcceptedFriendIds } from "./helpers";
 
 export const send = mutation({
   args: {
@@ -16,6 +17,10 @@ export const send = mutation({
 
     const toUser = await ctx.db.query("users").withIndex("by_username", (q) => q.eq("username", toUsername)).first();
     if (!toUser) throw new Error("User not found");
+    if (toUser._id === user._id) throw new Error("Can't send a point to yourself");
+
+    const friends = await getAcceptedFriendIds(ctx, user._id);
+    if (!friends.has(toUser._id)) throw new Error("You can only send points to accepted friends");
 
     const id = await ctx.db.insert("points", {
       fromUserId: user._id,
@@ -31,7 +36,6 @@ export const send = mutation({
   },
 });
 
-// Inbox: points sent TO me (chat style)
 export const inbox = query({
   args: { token: v.string() },
   handler: async (ctx, { token }) => {
@@ -40,7 +44,7 @@ export const inbox = query({
 
     const received = await ctx.db.query("points").withIndex("by_to_user", (q) => q.eq("toUserId", user._id)).order("desc").take(50);
 
-    return await Promise.all(received.map(async (p) => {
+    return Promise.all(received.map(async (p) => {
       const from = await ctx.db.get(p.fromUserId);
       return {
         id: p._id,
@@ -57,7 +61,6 @@ export const inbox = query({
   },
 });
 
-// Sent: points I sent (for chat view)
 export const sent = query({
   args: { token: v.string() },
   handler: async (ctx, { token }) => {
@@ -66,7 +69,7 @@ export const sent = query({
 
     const sentPoints = await ctx.db.query("points").withIndex("by_from_user", (q) => q.eq("fromUserId", user._id)).order("desc").take(50);
 
-    return await Promise.all(sentPoints.map(async (p) => {
+    return Promise.all(sentPoints.map(async (p) => {
       const to = await ctx.db.get(p.toUserId);
       return {
         id: p._id,
@@ -82,28 +85,23 @@ export const sent = query({
   },
 });
 
-// Get points on a specific URL (for showing friend highlights)
 export const forPage = query({
   args: { token: v.string(), url: v.string() },
   handler: async (ctx, { token, url }) => {
     const user = await ctx.db.query("users").withIndex("by_token", (q) => q.eq("token", token)).first();
     if (!user) return [];
 
-    // Get all friends
-    const friendships = await ctx.db.query("friends").withIndex("by_user", (q) => q.eq("userId", user._id)).collect();
-    const friendIds = new Set(friendships.map((f) => f.friendId));
+    const friendIds = await getAcceptedFriendIds(ctx, user._id);
 
-    // Get all points on this URL
     const points = await ctx.db.query("points").withIndex("by_url", (q) => q.eq("url", url)).collect();
 
-    // Filter: points from friends TO me, or from me
     const relevant = points.filter(
       (p) =>
         (p.toUserId === user._id && friendIds.has(p.fromUserId)) ||
-        p.fromUserId === user._id
+        p.fromUserId === user._id,
     );
 
-    return await Promise.all(relevant.map(async (p) => {
+    return Promise.all(relevant.map(async (p) => {
       const from = await ctx.db.get(p.fromUserId);
       const to = await ctx.db.get(p.toUserId);
       return {
@@ -126,8 +124,8 @@ export const unread = query({
     const user = await ctx.db.query("users").withIndex("by_token", (q) => q.eq("token", token)).first();
     if (!user) return [];
     const points = await ctx.db.query("points").withIndex("by_to_user", (q) => q.eq("toUserId", user._id)).order("desc").collect();
-    const unread = points.filter(p => !p.isRead);
-    return await Promise.all(unread.slice(0, 10).map(async (p) => {
+    const unread = points.filter((p) => !p.isRead);
+    return Promise.all(unread.slice(0, 10).map(async (p) => {
       const from = await ctx.db.get(p.fromUserId);
       return {
         id: p._id,

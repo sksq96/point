@@ -4,7 +4,6 @@
 (() => {
   "use strict";
 
-  const DEFAULT_API_BASE = "https://hidden-warbler-881.convex.site";
   let apiBase = null;
   let apiBaseLoadPromise = null;
 
@@ -29,7 +28,8 @@
       apiBaseLoadPromise = new Promise((resolve) => {
         sendMsg({ type: "GET_API_BASE" }, (r) => {
           const u = r?.url;
-          apiBase = (typeof u === "string" ? u : DEFAULT_API_BASE).replace(/\/+$/, "");
+          const def = typeof globalThis.POINT_API_BASE === "string" ? globalThis.POINT_API_BASE : "";
+          apiBase = (typeof u === "string" ? u : def).replace(/\/+$/, "");
           resolve();
         });
       });
@@ -37,7 +37,6 @@
     await apiBaseLoadPromise;
   }
 
-  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
   function escapeHtml(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
   function timeAgo(d) {
     const ms = typeof d === "number" ? d : new Date(d).getTime();
@@ -388,11 +387,8 @@
       sendBtn.addEventListener("click", doSend);
       input.addEventListener("keydown", e => { if (e.key === "Enter") doSend(); });
       input.focus();
-
-
-    } catch (err) {
+    } catch {
       thread.innerHTML = `<div class="point-thread-empty">Failed to load</div>`;
-
     }
   }
 

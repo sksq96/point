@@ -1,9 +1,12 @@
 // Point — background service worker
-
-const DEFAULT_API_BASE = "https://hidden-warbler-881.convex.site";
+importScripts("api-config.js");
 
 function isValidHttpUrl(s) {
   return typeof s === "string" && (s.startsWith("http://") || s.startsWith("https://"));
+}
+
+function stripTrailingSlashes(s) {
+  return s.replace(/\/+$/, "");
 }
 
 function getHighlightsMap(callback) {
@@ -65,7 +68,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       chrome.storage.local.get(["pointApiBase"], (result) => {
         const stored = result.pointApiBase;
         const t = typeof stored === "string" ? stored.trim() : "";
-        const url = isValidHttpUrl(t) ? t.replace(/\/+$/, "") : DEFAULT_API_BASE;
+        const def = typeof globalThis.POINT_API_BASE === "string" ? globalThis.POINT_API_BASE : "";
+        const url = isValidHttpUrl(t) ? stripTrailingSlashes(t) : stripTrailingSlashes(def);
         sendResponse({ url });
       });
       return true;
@@ -78,7 +82,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ success: false, error: "invalid url" });
         return true;
       }
-      const url = t.replace(/\/+$/, "");
+      const url = stripTrailingSlashes(t);
       chrome.storage.local.set({ pointApiBase: url }, () => sendResponse({ success: true, url }));
       return true;
     }

@@ -39,6 +39,16 @@ npm run package:extension
 
 This writes `dist/point-extension.zip` with `manifest.json` at the archive root (see [docs/chrome-web-store.md](docs/chrome-web-store.md)).
 
+**Chrome Web Store screenshots:** capture them manually (e.g. 1280×800) from Chrome with the unpacked extension — Friends tab, selection + “Point to” picker, open comment thread, etc. See **[docs/chrome-web-store.md](docs/chrome-web-store.md)** for listing asset notes.
+
+**Demo accounts + friendship** (optional; uses the production API from `point-extension/api-config.js`):
+
+```bash
+npm run setup:demo-friends
+```
+
+Defaults: **`marko_margin`** and **`penny_point`**, password **`PointDemo2026`**. Override with **`POINT_DEMO_USER_A`**, **`POINT_DEMO_USER_B`**, **`POINT_DEMO_PASSWORD`**.
+
 ## Load the unpacked extension
 
 1. Open Chrome and go to `chrome://extensions`.

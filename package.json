@@ -10,6 +10,7 @@
     "verify": "npm run typecheck && npm run package:extension",
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --max-warnings 0 --fix",
+    "setup:demo-friends": "node scripts/setup-demo-friends.cjs",
     "prepare": "husky"
   },
   "lint-staged": {

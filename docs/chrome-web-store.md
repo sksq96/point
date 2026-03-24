@@ -23,7 +23,7 @@ Point injects its UI only to let users select text, render highlights, and open 
 
 ## Icons and promotional images
 
-Provide icons as in `manifest.json` (16, 48, 128). For the store listing, prepare assets per current dashboard specs (sizes and aspect ratios are updated periodically). Typical needs include **screenshots** (e.g. 1280×800 or 1400×560 for many listings—confirm in the upload UI), and optional **small promo tile**, **marquee**, and **large promo** images if you use featured placement. Use clear screenshots that show the highlight UI, panel, and friend flow without sensitive user data.
+Provide icons as in `manifest.json` (16, 48, 128). For the store listing, prepare assets per current dashboard specs (sizes and aspect ratios are updated periodically). Typical needs include **screenshots** (e.g. 1280×800 or 1400×560 for many listings—confirm in the upload UI), and optional **small promo tile**, **marquee**, and **large promo** images if you use featured placement. Use clear screenshots that show the highlight UI, panel, and friend flow without sensitive user data. Capture store-sized PNGs manually in Chrome (e.g. 1280×800) with the unpacked extension; optional **`npm run setup:demo-friends`** can create demo accounts for a realistic friends + thread setup (see root `README.md`).
 
 ## Version and package
 

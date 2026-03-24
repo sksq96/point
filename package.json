@@ -1,11 +1,19 @@
 {
   "name": "point-convex",
-  "version": "1.0.0",
+  "version": "3.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
     "test": "node -e \"console.log('No tests yet'); process.exit(0)\"",
-    "typecheck": "tsc -p convex/tsconfig.json"
+    "typecheck": "tsc -p convex/tsconfig.json",
+    "package:extension": "mkdir -p dist && (cd point-extension && zip -r ../dist/point-extension.zip .)",
+    "verify": "npm run typecheck && npm run package:extension",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --max-warnings 0 --fix",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "**/*.{js,cjs,mjs,ts}": "eslint --max-warnings 0 --fix"
   },
   "keywords": [],
   "author": "",
@@ -15,6 +23,12 @@
     "convex": "^1.34.0"
   },
   "devDependencies": {
-    "typescript": "^5.8.0"
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.1.0",
+    "globals": "^17.4.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
+    "typescript": "^5.8.0",
+    "typescript-eslint": "^8.57.2"
   }
 }

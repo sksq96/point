@@ -1,9 +1,20 @@
 // Point — background service worker
-
-const DEFAULT_API_BASE = "https://hidden-warbler-881.convex.site";
+importScripts("api-config.js");
 
 function isValidHttpUrl(s) {
   return typeof s === "string" && (s.startsWith("http://") || s.startsWith("https://"));
+}
+
+function stripTrailingSlashes(s) {
+  return s.replace(/\/+$/, "");
+}
+
+function resolveApiBaseUrl(stored, fallback) {
+  const a = typeof stored === "string" ? stored.trim() : "";
+  const b = typeof fallback === "string" ? fallback.trim() : "";
+  if (isValidHttpUrl(a)) return stripTrailingSlashes(a);
+  if (isValidHttpUrl(b)) return stripTrailingSlashes(b);
+  return "";
 }
 
 function getHighlightsMap(callback) {
@@ -63,22 +74,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     if (message.type === "GET_API_BASE") {
       chrome.storage.local.get(["pointApiBase"], (result) => {
-        const stored = result.pointApiBase;
-        const t = typeof stored === "string" ? stored.trim() : "";
-        const url = isValidHttpUrl(t) ? t.replace(/\/+$/, "") : DEFAULT_API_BASE;
-        sendResponse({ url });
+        const fallback =
+          typeof globalThis.POINT_API_BASE === "string" ? globalThis.POINT_API_BASE : "";
+        sendResponse({ url: resolveApiBaseUrl(result.pointApiBase, fallback) });
       });
       return true;
     }
 
     if (message.type === "SET_API_BASE") {
-      const raw = message.url;
-      const t = typeof raw === "string" ? raw.trim() : "";
-      if (!isValidHttpUrl(t)) {
+      const trimmed = typeof message.url === "string" ? message.url.trim() : "";
+      if (!isValidHttpUrl(trimmed)) {
         sendResponse({ success: false, error: "invalid url" });
         return true;
       }
-      const url = t.replace(/\/+$/, "");
+      const url = stripTrailingSlashes(trimmed);
       chrome.storage.local.set({ pointApiBase: url }, () => sendResponse({ success: true, url }));
       return true;
     }

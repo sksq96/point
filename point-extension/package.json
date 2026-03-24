@@ -1,0 +1,12 @@
+{
+  "name": "point-extension",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Point Chrome extension for collaborative web annotations",
+  "scripts": {
+    "screenshots": "playwright test tests/capture.test.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0"
+  }
+}

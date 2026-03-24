@@ -7,3 +7,6 @@ node_modules/
 *.db-wal
 .DS_Store
 point-extension/tests/screenshots/
+point-extension/test-results/
+.cursor/
+store-assets/

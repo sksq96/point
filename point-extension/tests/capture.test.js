@@ -303,18 +303,10 @@ test.describe('Point Extension Screenshots', () => {
   });
 
   // 03: Panel Auth Form
-  test.skip('03-panel-auth-form', async ({ page }) => {
-    // FIXME: Panel renders but pp-body content doesn't populate despite .open class being set
-    // This appears to be a timing/initialization issue with content script in test environment
+  test('03-panel-auth-form', async ({ page }) => {
+    await injectContentScript(page);
     await mockApiRoutes(page);
     await clearAuthState(page);
-
-    await page.addInitScript(
-      ({ apiBase }) => {
-        globalThis.POINT_API_BASE = apiBase;
-      },
-      { apiBase: API_BASE }
-    );
 
     await page.goto(fixtureUrl);
     await page.waitForSelector('#point-fab', { timeout: 5000 });
@@ -322,9 +314,6 @@ test.describe('Point Extension Screenshots', () => {
     // Click FAB to open panel
     await page.click('#point-fab');
     await page.waitForSelector('#point-panel', { timeout: 5000 });
-
-    // Wait for content to render with extended timeout
-    await page.waitForTimeout(2000);
 
     // Verify auth form is shown (logged out state)
     await page.waitForSelector('#pp-auth-username', { timeout: 15000 });
@@ -336,24 +325,19 @@ test.describe('Point Extension Screenshots', () => {
   });
 
   // 04: Panel Auth Error
-  test.skip('04-panel-auth-error', async ({ page }) => {
-    // FIXME: Same timing issue as test 03 - panel renders but content doesn't populate
+  test('04-panel-auth-error', async ({ page }) => {
     await injectContentScript(page);
-
-    // Mock login failure
-    await page.route(`${API_BASE}/**`, async (route) => {
-      const url = new URL(route.request().url());
-      if (url.pathname === '/auth/login') {
-        return route.respond({
-          status: 401,
-          contentType: 'application/json',
-          body: JSON.stringify({ error: 'Invalid credentials' }),
-        });
-      }
-      return route.abort();
-    });
+    await mockApiRoutes(page); // Setup standard API routes
 
     await clearAuthState(page);
+
+    // Set API base so content.js knows where to call
+    await page.addInitScript(
+      ({ apiBase }) => {
+        globalThis.POINT_API_BASE = apiBase;
+      },
+      { apiBase: API_BASE }
+    );
 
     await page.goto(fixtureUrl);
     await page.waitForSelector('#point-fab', { timeout: 5000 });
@@ -404,8 +388,7 @@ test.describe('Point Extension Screenshots', () => {
 
   // 06: Panel Pages Populated
   test.skip('06-panel-pages-populated', async ({ page }) => {
-    // FIXME: Pages list not rendering even with extended timeouts
-    // setupTest injects content script which may be conflicting with chrome mock
+    // TODO: Pages list not rendering - needs investigation into API mock setup
     await setupTest(page, { auth: { user: mockUser, token: mockToken } });
     await page.goto(fixtureUrl);
     await page.waitForSelector('#point-fab', { timeout: 5000 });
@@ -413,30 +396,9 @@ test.describe('Point Extension Screenshots', () => {
     // Click FAB to open panel
     await page.click('#point-fab');
     await page.waitForSelector('#point-panel', { timeout: 5000 });
-    await page.waitForTimeout(2000);
+    await page.waitForSelector('.pp-body', { timeout: 10000, state: 'visible' });
 
-    // Mock pages endpoint to return data
-    await page.route(`${API_BASE}/**`, async (route) => {
-      const url = new URL(route.request().url());
-      if (url.pathname === '/highlights/pages') {
-        return route.respond({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify(mockPages),
-        });
-      }
-      if (url.pathname === '/friends/pending-count') {
-        return route.respond({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify(0),
-        });
-      }
-      return route.abort();
-    });
-
-    // Trigger Pages view refresh by clicking pages tab
-    await page.click('[data-tab="pages"]');
+    // Wait for initial pages render
     await page.waitForSelector('.pp-thread-row', { timeout: 15000 });
 
     await page.screenshot({
@@ -500,8 +462,7 @@ test.describe('Point Extension Screenshots', () => {
 
   // 09: Tooltip with Friends
   test.skip('09-tooltip-with-friends', async ({ page }) => {
-    // FIXME: Tooltip friends not rendering even with extended timeouts
-    // Similar issue to other content rendering tests
+    // TODO: Tooltip friends not rendering - needs investigation into tooltip trigger mechanism
     await setupTest(page, {
       auth: { user: mockUser, token: mockToken },
       includeFriends: true,

@@ -15,8 +15,10 @@
  * @param {string} apiBaseUrl - API base URL
  */
 function setupChromeMock(authState, apiBaseUrl) {
-  const user = authState?.user || { id: 'user-123', username: 'testuser', color: '#4a7c6f' };
-  const token = authState?.token || 'mock-token-abc123xyz';
+  // Only use provided auth if it has both user and token
+  const hasAuth = authState?.user && authState?.token;
+  const user = authState?.user;
+  const token = authState?.token;
 
   // Only inject if chrome.runtime is not already properly defined
   if (!window.chrome || !window.chrome.runtime || !window.chrome.runtime.sendMessage) {
@@ -27,10 +29,7 @@ function setupChromeMock(authState, apiBaseUrl) {
       // Handle GET_AUTH message
       if (msg && msg.type === 'GET_AUTH') {
         setTimeout(() => {
-          const response = {
-            user: user,
-            token: token
-          };
+          const response = hasAuth ? { user: user, token: token } : null;
           if (callback) callback(response);
         }, 0);
         return;

@@ -6,6 +6,7 @@ export default tseslint.config(
   { ignores: ["**/node_modules/**", "dist/**", "convex/_generated/**"] },
   {
     files: ["point-extension/**/*.js"],
+    ignores: ["point-extension/tests/**/*.js"],
     ...eslint.configs.recommended,
     languageOptions: {
       ecmaVersion: 2022,
@@ -14,6 +15,25 @@ export default tseslint.config(
         ...globals.browser,
         ...globals.webextensions,
         importScripts: "readonly",
+      },
+    },
+    rules: {
+      "no-empty": "off",
+      "no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
+    },
+  },
+  {
+    files: ["point-extension/tests/**/*.js"],
+    ...eslint.configs.recommended,
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: "module",
+      globals: {
+        ...globals.browser,
+        ...globals.node,
       },
     },
     rules: {

@@ -65,7 +65,20 @@
     const headers = { "Content-Type": "application/json" };
     if (auth?.token) headers["Authorization"] = `Bearer ${auth.token}`;
     const res = await fetch(`${apiBase}${path}`, { ...opts, headers });
-    const data = await res.json();
+    const text = await res.text();
+    let data = {};
+    if (text) {
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error("Invalid response from server");
+      }
+    }
+    if (res.status === 401) {
+      if (auth?.token) doLogout();
+      const message = typeof data.error === "string" ? data.error : "Session expired";
+      throw new Error(message);
+    }
     if (!res.ok) throw new Error(data.error || "request failed");
     return data;
   }
@@ -636,7 +649,7 @@
     if (!auth?.token) return;
     try {
       const unread = await apiCall("/points/unread");
-      const pending = await apiCall("/friends/pending-count").catch(() => 0);
+      const pending = await apiCall("/friends/pending-count");
       const pendingNum = typeof pending === "number" ? pending : 0;
 
       if (seenPointIds === null) {
@@ -662,7 +675,9 @@
 
       // Red dot if anything unread
       showNotifDot(unread.length > 0 || pendingNum > 0);
-    } catch {}
+    } catch {
+      if (!auth?.token) return;
+    }
   }
 
   function doLogout() {
@@ -708,15 +723,21 @@
     } catch (e) { err.textContent = e.message; err.style.display = "block"; }
   }
 
-  async function loadFriends() { try { friends = await apiCall("/friends"); } catch { friends = []; } }
+  async function loadFriends() {
+    try {
+      friends = await apiCall("/friends");
+    } catch {
+      if (auth?.token) friends = [];
+    }
+  }
 
   // ── Pages view (all conversations) ───────────────────────────────
   async function renderPages() {
     if (!document.getElementById("pp-body")) return;
     try {
       const [pages, pending] = await Promise.all([
-        apiCall("/highlights/pages").catch(() => []),
-        apiCall("/friends/pending-count").catch(() => 0),
+        apiCall("/highlights/pages"),
+        apiCall("/friends/pending-count"),
       ]);
       const body = document.getElementById("pp-body"); if (!body) return;
       updateBadge(typeof pending === "number" ? pending : 0);
@@ -751,7 +772,11 @@
           else window.open(url, "_blank");
         });
       });
-    } catch { const b = document.getElementById("pp-body"); if (b) b.innerHTML = `<div class="pp-empty">Could not load pages.</div>`; }
+    } catch {
+      if (!auth?.token) return;
+      const b = document.getElementById("pp-body");
+      if (b) b.innerHTML = `<div class="pp-empty">Could not load pages.</div>`;
+    }
   }
 
   // ── Friends view ─────────────────────────────────────────────────
@@ -762,7 +787,9 @@
       const [pending, sent] = await Promise.all([apiCall("/friends/pending"), apiCall("/friends/sent")]);
       if (pending.length > 0) pendingHtml = `<div class="pp-section-label">Requests</div>` + pending.map(r => `<div class="pp-friend-request"><div class="pp-fr-avatar" style="background:${r.color}20;border-color:${r.color};color:${r.color}">${escapeHtml(r.fromUsername.charAt(0).toUpperCase())}</div><div class="pp-fr-name" style="color:${r.color}">${escapeHtml(r.fromUsername)}</div><button class="pp-accept-btn" data-rid="${r.id}">Accept</button><button class="pp-reject-btn" data-rid="${r.id}">&times;</button></div>`).join("");
       if (sent.length > 0) sentHtml = `<div class="pp-section-label">Waiting</div>` + sent.map(r => `<div class="pp-friend-waiting"><div class="pp-fr-avatar" style="background:${r.color}20;border-color:${r.color};color:${r.color}">${escapeHtml(r.toUsername.charAt(0).toUpperCase())}</div><div class="pp-fr-name" style="color:${r.color}">${escapeHtml(r.toUsername)}</div><div class="pp-waiting-label">pending</div></div>`).join("");
-    } catch {}
+    } catch {
+      if (!auth?.token) return;
+    }
 
     body.innerHTML = `
       <div class="pp-add-friend"><input type="text" id="pp-add-input" placeholder="Add friend by username..." /><button id="pp-add-btn">Send</button></div>

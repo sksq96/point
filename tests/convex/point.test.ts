@@ -227,6 +227,15 @@ describe("http smoke", () => {
     expect(res.status).toBe(401);
   });
 
+  test.each([
+    ["no bearer", {}],
+    ["invalid bearer", { headers: { Authorization: "Bearer deadbeefnotatoken" } }],
+  ] as const)("GET /friends with %s returns 401", async (_label, init) => {
+    const t = setup();
+    const res = await t.fetch("/friends", { method: "GET", ...init });
+    expect(res.status).toBe(401);
+  });
+
   test("invalid JSON on login returns 400", async () => {
     const t = setup();
     const res = await t.fetch("/auth/login", {

@@ -1,5 +1,5 @@
 import { httpRouter } from "convex/server";
-import { httpAction } from "./_generated/server";
+import { httpAction, type ActionCtx } from "./_generated/server";
 import { api } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 
@@ -49,10 +49,19 @@ function convexId<Table extends IdTableName>(b: Record<string, unknown>, key: st
   return value as Id<Table>;
 }
 
+const NOT_AUTHENTICATED = "Not authenticated";
+
 function catchHttp(e: unknown) {
   if (e instanceof BadJsonError) return json({ error: "Invalid JSON" }, 400);
   const msg = e instanceof Error ? e.message : "Request failed";
+  if (msg === NOT_AUTHENTICATED) return json({ error: msg }, 401);
   return json({ error: msg }, 400);
+}
+
+async function requireAuthenticatedUser(ctx: Pick<ActionCtx, "runQuery">, token: string) {
+  if (!token) throw new Error(NOT_AUTHENTICATED);
+  const user = await ctx.runQuery(api.users.me, { token });
+  if (!user) throw new Error(NOT_AUTHENTICATED);
 }
 
 const allPaths = [
@@ -88,7 +97,11 @@ http.route({ path: "/auth/me", method: "GET", handler: httpAction(async (ctx, re
 
 // ── Friends
 http.route({ path: "/friends", method: "GET", handler: httpAction(async (ctx, req) => {
-  return json(await ctx.runQuery(api.friends.list, { token: bearerToken(req) }));
+  try {
+    const token = bearerToken(req);
+    await requireAuthenticatedUser(ctx, token);
+    return json(await ctx.runQuery(api.friends.list, { token }));
+  } catch (e: unknown) { return catchHttp(e); }
 })});
 http.route({ path: "/friends/request", method: "POST", handler: httpAction(async (ctx, req) => {
   try {
@@ -98,13 +111,25 @@ http.route({ path: "/friends/request", method: "POST", handler: httpAction(async
   } catch (e: unknown) { return catchHttp(e); }
 })});
 http.route({ path: "/friends/pending", method: "GET", handler: httpAction(async (ctx, req) => {
-  return json(await ctx.runQuery(api.friends.pendingRequests, { token: bearerToken(req) }));
+  try {
+    const token = bearerToken(req);
+    await requireAuthenticatedUser(ctx, token);
+    return json(await ctx.runQuery(api.friends.pendingRequests, { token }));
+  } catch (e: unknown) { return catchHttp(e); }
 })});
 http.route({ path: "/friends/pending-count", method: "GET", handler: httpAction(async (ctx, req) => {
-  return json(await ctx.runQuery(api.friends.pendingCount, { token: bearerToken(req) }));
+  try {
+    const token = bearerToken(req);
+    await requireAuthenticatedUser(ctx, token);
+    return json(await ctx.runQuery(api.friends.pendingCount, { token }));
+  } catch (e: unknown) { return catchHttp(e); }
 })});
 http.route({ path: "/friends/sent", method: "GET", handler: httpAction(async (ctx, req) => {
-  return json(await ctx.runQuery(api.friends.sentRequests, { token: bearerToken(req) }));
+  try {
+    const token = bearerToken(req);
+    await requireAuthenticatedUser(ctx, token);
+    return json(await ctx.runQuery(api.friends.sentRequests, { token }));
+  } catch (e: unknown) { return catchHttp(e); }
 })});
 http.route({ path: "/friends/accept", method: "POST", handler: httpAction(async (ctx, req) => {
   try {
@@ -155,12 +180,17 @@ http.route({ path: "/highlights/remove", method: "POST", handler: httpAction(asy
 http.route({ path: "/highlights/page", method: "POST", handler: httpAction(async (ctx, req) => {
   try {
     const token = bearerToken(req);
+    await requireAuthenticatedUser(ctx, token);
     const b = bodyObj(await readJson(req));
     return json(await ctx.runQuery(api.highlights.forPage, { token, url: requiredString(b, "url") }));
   } catch (e: unknown) { return catchHttp(e); }
 })});
 http.route({ path: "/highlights/pages", method: "GET", handler: httpAction(async (ctx, req) => {
-  return json(await ctx.runQuery(api.highlights.allPages, { token: bearerToken(req) }));
+  try {
+    const token = bearerToken(req);
+    await requireAuthenticatedUser(ctx, token);
+    return json(await ctx.runQuery(api.highlights.allPages, { token }));
+  } catch (e: unknown) { return catchHttp(e); }
 })});
 
 // ── Points (notifications)
@@ -180,7 +210,11 @@ http.route({ path: "/points/send", method: "POST", handler: httpAction(async (ct
 })});
 
 http.route({ path: "/points/unread", method: "GET", handler: httpAction(async (ctx, req) => {
-  return json(await ctx.runQuery(api.points.unread, { token: bearerToken(req) }));
+  try {
+    const token = bearerToken(req);
+    await requireAuthenticatedUser(ctx, token);
+    return json(await ctx.runQuery(api.points.unread, { token }));
+  } catch (e: unknown) { return catchHttp(e); }
 })});
 http.route({ path: "/points/read", method: "POST", handler: httpAction(async (ctx, req) => {
   try {
@@ -205,6 +239,7 @@ http.route({ path: "/comments/add", method: "POST", handler: httpAction(async (c
 http.route({ path: "/comments/list", method: "POST", handler: httpAction(async (ctx, req) => {
   try {
     const token = bearerToken(req);
+    await requireAuthenticatedUser(ctx, token);
     const b = bodyObj(await readJson(req));
     return json(await ctx.runQuery(api.comments.forHighlight, { token, highlightId: convexId<"highlights">(b, "highlightId") }));
   } catch (e: unknown) { return catchHttp(e); }

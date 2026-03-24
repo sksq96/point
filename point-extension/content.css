@@ -2,8 +2,25 @@
    Point v7 — collaborative annotations (light mode)
    ═══════════════════════════════════════════════════════════ */
 :root {
+  --point-focus-ring: #1a4d8c;
   --point-accent: #4a7c6f;
   --point-accent-bg: #4a7c6f20;
+  --point-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --point-font-display: Georgia, "Times New Roman", "Liberation Serif", serif;
+  --point-font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --point-text-xs: 10px;
+  --point-text-sm: 11px;
+  --point-text-md: 12px;
+  --point-text-base: 13px;
+  --point-text-lg: 14px;
+  --point-text-xl: 16px;
+  --point-leading-tight: 1.25;
+  --point-leading-body: 1.5;
+  --point-leading-relaxed: 1.65;
+  --point-track-caps: 0.06em;
+  --point-panel-max-h: min(720px, calc(100vh - 88px));
+  --point-panel-max-h-dvh: min(720px, calc(100dvh - 88px));
+  --point-thread-max-w: min(380px, calc(100vw - 16px));
 }
 
 /* ── Highlight marks on page ──────────────────────────────── */
@@ -16,39 +33,47 @@ mark.point-hl {
 mark.point-hl:hover {
   filter: brightness(1.1);
 }
+mark.point-hl:focus-visible {
+  outline: 2px solid var(--point-focus-ring);
+  outline-offset: 2px;
+}
 
 /* ── Selection tooltip (friend picker) ────────────────────── */
 #point-tooltip {
   position: absolute;
   z-index: 2147483646;
   background: #faf8f4;
-  border: 2.5px solid #222;
+  border: 1.5px solid #cfc9bf;
   border-radius: 10px;
   padding: 4px;
-  min-width: 150px;
-  max-height: 260px;
+  min-width: min(150px, calc(100vw - 16px));
+  max-width: min(300px, calc(100vw - 16px));
+  max-height: min(260px, calc(100dvh - 24px));
   overflow-y: auto;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.10);
+  box-sizing: border-box;
+  box-shadow: 0 6px 26px rgba(0,0,0,0.12);
   animation: point-pop 0.12s ease-out;
 }
 #point-tooltip button {
   all: unset;
   padding: 6px 14px;
-  font-size: 13px;
-  font-weight: 800;
+  font-size: var(--point-text-base);
+  font-weight: 700;
   cursor: pointer;
   color: #222;
   font-family: -apple-system, sans-serif;
   border-radius: 6px;
   transition: background 0.1s;
+  min-height: 44px;
+  box-sizing: border-box;
 }
 #point-tooltip button:hover { background: rgba(0,0,0,0.05); }
 .point-tooltip-header {
   padding: 6px 14px 4px;
-  font-size: 11px;
+  font-size: var(--point-text-sm);
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: var(--point-track-caps);
   color: #999;
   font-family: -apple-system, sans-serif;
 }
@@ -56,13 +81,25 @@ mark.point-hl:hover {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 12px;
+  width: calc(100% - 8px);
+  margin: 1px 4px;
+  padding: 10px 12px;
+  min-height: 44px;
+  box-sizing: border-box;
   cursor: pointer;
   transition: background 0.1s;
   border-radius: 6px;
-  margin: 1px 4px;
+  border: none;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  color: inherit;
 }
 .point-tooltip-friend:hover { background: rgba(0,0,0,0.05); }
+.point-tooltip-friend:focus-visible {
+  outline: 2px solid var(--point-focus-ring);
+  outline-offset: 2px;
+}
 .point-tooltip-avatar {
   width: 24px; height: 24px; border-radius: 50%;
   border: 2px solid #ccc; display: flex; align-items: center;
@@ -70,7 +107,7 @@ mark.point-hl:hover {
   color: #222; flex-shrink: 0; font-family: -apple-system, sans-serif;
 }
 .point-tooltip-name {
-  font-size: 13px; font-weight: 600; color: #222;
+  font-size: var(--point-text-base); font-weight: 600; color: #222;
   font-family: -apple-system, sans-serif;
 }
 .point-tooltip-empty {
@@ -83,18 +120,21 @@ mark.point-hl:hover {
   position: absolute;
   z-index: 2147483645;
   width: 380px;
+  max-width: var(--point-thread-max-w);
+  box-sizing: border-box;
   background: #faf8f4;
-  border: 2.5px solid #222;
+  border: 1.5px solid #cfc9bf;
   border-radius: 14px;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.12);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-size: 13px;
+  box-shadow: 0 6px 26px rgba(0,0,0,0.12);
+  font-family: var(--point-font-sans);
+  font-size: var(--point-text-base);
   color: #222;
+  line-height: var(--point-leading-body);
   overflow: hidden;
   animation: point-pop 0.15s ease-out;
   display: flex;
   flex-direction: column;
-  max-height: 500px;
+  max-height: min(500px, calc(100dvh - 24px));
 }
 .point-thread-drag {
   text-align: center;
@@ -107,75 +147,104 @@ mark.point-hl:hover {
   line-height: 1;
 }
 .point-thread-drag:hover { color: #999; }
-.point-thread-loading, .point-thread-empty {
+.point-thread-loading {
   padding: 20px;
   text-align: center;
   color: #bbb;
+  font-size: var(--point-text-md);
+}
+.point-thread-empty {
+  padding: 24px 20px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: #bbb;
+  font-size: var(--point-text-md);
+  line-height: var(--point-leading-relaxed);
+}
+.point-thread-empty .pp-empty-hint {
+  margin-top: 0;
 }
 .point-thread-header {
   padding: 10px 14px;
   display: flex;
   align-items: center;
   gap: 8px;
-  border-bottom: 1.5px solid #eee;
+  border-bottom: 1px solid #ddd;
 }
 .point-thread-author {
-  font-weight: 700;
-  font-size: 13px;
+  font-weight: 600;
+  font-size: var(--point-text-lg);
+  letter-spacing: -0.01em;
 }
 .point-thread-time {
-  font-size: 11px;
+  font-size: var(--point-text-sm);
   color: #bbb;
   margin-left: auto;
+  font-family: var(--point-font-mono);
+  font-variant-numeric: tabular-nums;
 }
 .point-thread-delete {
   all: unset;
   cursor: pointer;
-  font-size: 16px;
+  font-size: 14px;
   color: #ccc;
-  padding: 2px 6px;
-  border-radius: 4px;
+  padding: 0 10px;
+  min-width: 32px;
+  min-height: 32px;
+  border-radius: 8px;
+  border: 1px solid rgba(232,93,93,0.35);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   transition: all 0.1s;
 }
 .point-thread-delete:hover { color: #e85d5d; background: rgba(232,93,93,0.08); }
 .point-thread-quote {
   padding: 10px 14px;
-  font-size: 13px;
-  line-height: 1.5;
+  font-size: var(--point-text-base);
+  line-height: var(--point-leading-relaxed);
   color: #555;
-  border-bottom: 1.5px solid #eee;
-  max-height: 300px;
+  border-bottom: 1px solid #ddd;
+  max-height: min(300px, 42vh);
   overflow-y: auto;
 }
 .point-thread-comments {
-  max-height: 400px;
+  max-height: min(400px, 48vh);
   overflow-y: auto;
   flex: 1;
+  min-height: 0;
 }
 .point-thread-comment {
   padding: 8px 14px;
   border-bottom: 1px solid #f5f3ef;
 }
 .point-thread-comment-author {
-  font-weight: 700;
-  font-size: 12px;
+  font-weight: 600;
+  font-size: var(--point-text-md);
   margin-right: 4px;
 }
 .point-thread-comment-body {
-  font-size: 13px;
+  font-size: var(--point-text-base);
   color: #333;
+  line-height: var(--point-leading-body);
 }
 .point-thread-comment-time {
-  font-size: 10px;
+  font-size: var(--point-text-xs);
   color: #ccc;
   margin-left: 6px;
+  font-family: var(--point-font-mono);
+  font-variant-numeric: tabular-nums;
 }
 .point-thread-input {
   display: flex;
   gap: 6px;
   padding: 8px 10px;
-  border-top: 1.5px solid #eee;
+  border-top: 1px solid #ddd;
   margin-top: auto;
+  background: #f2f0ec;
 }
 .point-thread-input input {
   flex: 1;
@@ -192,21 +261,31 @@ mark.point-hl:hover {
 .point-thread-input input::placeholder { color: #bbb; }
 .point-thread-input button {
   all: unset;
-  padding: 6px 10px;
+  padding: 8px 12px;
   font-size: 14px;
   cursor: pointer;
   color: #222;
   border: 2px solid #222;
   border-radius: 8px;
   transition: all 0.1s;
+  min-height: 44px;
+  min-width: 44px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .point-thread-input button:hover { background: #222; color: #faf8f4; }
+.point-thread-input button:focus-visible {
+  outline: 2px solid var(--point-focus-ring);
+  outline-offset: 2px;
+}
 
 /* ── Bottom-right widget ──────────────────────────────────── */
 #point-widget {
   position: fixed;
-  bottom: 20px;
-  right: 20px;
+  bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  right: max(12px, env(safe-area-inset-right, 0px));
   z-index: 2147483647;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   font-size: 14px;
@@ -223,7 +302,7 @@ mark.point-hl:hover {
   width: 52px;
   height: 52px;
   border-radius: 50%;
-  background: #faf8f4;
+  background: #1a1a1a;
   border: 2.5px solid #222;
   cursor: pointer;
   display: flex;
@@ -231,13 +310,17 @@ mark.point-hl:hover {
   justify-content: center;
   font-size: 26px;
   font-weight: 800;
-  color: #222;
+  color: #faf8f4;
   font-family: -apple-system, sans-serif;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.10);
+  box-shadow: 0 10px 32px rgba(0,0,0,0.18);
   transition: transform 0.15s, box-shadow 0.15s;
   position: relative;
 }
-#point-fab:hover { transform: scale(1.05); box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+#point-fab:hover { transform: scale(1.05); box-shadow: 0 12px 36px rgba(0,0,0,0.22); }
+#point-fab:focus-visible {
+  outline: 3px solid var(--point-focus-ring);
+  outline-offset: 3px;
+}
 #point-fab.hidden { display: none; }
 #point-fab .point-notif-dot {
   position: absolute; top: -2px; right: -2px;
@@ -249,17 +332,21 @@ mark.point-hl:hover {
 /* Panel */
 #point-panel {
   position: fixed;
-  bottom: 80px; right: 16px;
-  width: 380px;
-  height: 720px;
+  bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  right: max(8px, env(safe-area-inset-right, 0px));
+  width: min(380px, calc(100vw - 32px));
+  max-width: calc(100vw - 16px);
+  height: var(--point-panel-max-h);
+  max-height: var(--point-panel-max-h-dvh);
   background: #faf8f4;
-  border: 2.5px solid #222;
+  border: 1.5px solid #cfc9bf;
   border-radius: 20px;
-  box-shadow: 0 4px 30px rgba(0,0,0,0.12);
+  box-shadow: 0 6px 26px rgba(0,0,0,0.12);
   display: none;
   flex-direction: column;
   overflow: hidden;
   animation: point-pop 0.2s ease-out;
+  box-sizing: border-box;
 }
 #point-panel.open { display: flex; }
 #point-panel *, #point-panel *::before, #point-panel *::after {
@@ -277,64 +364,90 @@ mark.point-hl:hover {
 .pp-resize-handle {
   position: absolute;
   left: 0; top: 0; bottom: 0;
-  width: 6px;
+  width: 10px;
   cursor: ew-resize;
   z-index: 1;
 }
 .pp-resize-handle:hover { background: rgba(0,0,0,0.03); }
+.pp-resize-handle:focus-visible {
+  outline: 2px solid var(--point-focus-ring);
+  outline-offset: -2px;
+  background: rgba(0,0,0,0.05);
+}
 
 #point-panel .pp-header {
   padding: 4px 10px;
   display: flex; align-items: center; gap: 6px;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid #cfc9bf;
   background: #f2f0ec;
   flex-shrink: 0; order: 1;
   cursor: grab; user-select: none;
 }
 #point-panel .pp-header .pp-title {
-  font-size: 11px; font-weight: 700; flex: 1; color: #999;
+  font-size: var(--point-text-sm); font-weight: 700; flex: 1; color: #999;
+  letter-spacing: var(--point-track-caps);
+  text-transform: uppercase;
 }
 #point-panel .pp-header button {
   all: unset; cursor: pointer;
-  width: 18px; height: 18px; border-radius: 50%;
+  min-width: 44px; min-height: 44px; width: 44px; height: 44px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  font-size: 10px; color: #999; border: 1px solid #ccc;
+  font-size: 12px; color: #767676; border: 1px solid #ccc;
   transition: all 0.1s;
+  box-sizing: border-box;
+  flex-shrink: 0;
 }
 #point-panel .pp-header button:hover { background: rgba(0,0,0,0.05); color: #222; }
+#point-panel .pp-header button:focus-visible {
+  outline: 2px solid var(--point-focus-ring);
+  outline-offset: 2px;
+}
 #point-panel .pp-header button.pp-logout-btn { color: #bbb; border-color: #ddd; }
 #point-panel .pp-header button.pp-logout-btn:hover { color: #e85d5d; border-color: #e85d5d; }
 
 #point-panel .pp-tabs {
-  display: flex; border-top: 2.5px solid #222;
+  display: flex; border-top: 1px solid #cfc9bf;
   flex-shrink: 0; order: 3;
+  background: #f2f0ec;
 }
 #point-panel .pp-tab {
-  all: unset; flex: 1; padding: 12px 0; text-align: center;
-  font-size: 13px; font-weight: 700; cursor: pointer; color: #999;
+  all: unset; flex: 1; padding: 14px 8px; text-align: center;
+  font-size: var(--point-text-base); font-weight: 600; cursor: pointer; color: #767676;
   border-top: 3px solid transparent; transition: all 0.12s;
+  min-height: 48px;
+  box-sizing: border-box;
 }
 #point-panel .pp-tab:hover { color: #555; }
-#point-panel .pp-tab.active { color: #222; border-top-color: var(--point-accent); }
+#point-panel .pp-tab.active { color: #222; border-top-color: var(--point-accent); font-weight: 700; }
+#point-panel .pp-tab:focus-visible {
+  outline: 2px solid var(--point-focus-ring);
+  outline-offset: -2px;
+}
 
 #point-panel .pp-body {
   flex: 1; overflow-y: auto; min-height: 0; order: 2;
   display: flex; flex-direction: column;
+  background: #f5f2ec;
 }
 
 /* ── Thread list rows ─────────────────────────────────────── */
 .pp-thread-row {
   display: flex; align-items: center; gap: 12px;
-  padding: 14px 20px; border-bottom: 1.5px solid #eee;
+  padding: 14px 20px; border-bottom: 1px solid #eee;
   cursor: pointer; transition: background 0.1s;
 }
 .pp-thread-row:hover { background: #f5f3ef; }
+.pp-thread-row:focus-visible {
+  outline: 2px solid var(--point-focus-ring);
+  outline-offset: -2px;
+  background: #f5f3ef;
+}
 .pp-thread-info { flex: 1; min-width: 0; }
-.pp-thread-title { font-size: 14px; font-weight: 700; color: #222; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pp-thread-participants { font-size: 11px; color: var(--point-accent); font-weight: 600; margin-top: 2px; }
-.pp-thread-preview { font-size: 12px; color: #999; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pp-thread-title { font-size: var(--point-text-lg); font-weight: 700; color: #222; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.015em; line-height: var(--point-leading-tight); }
+.pp-thread-participants { font-size: var(--point-text-md); color: var(--point-accent); font-weight: 500; margin-top: 2px; }
+.pp-thread-preview { font-size: var(--point-text-md); color: #888; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pp-thread-meta { text-align: right; flex-shrink: 0; }
-.pp-thread-time { font-size: 10px; color: #bbb; }
+.pp-thread-time { font-size: var(--point-text-xs); color: #bbb; font-family: var(--point-font-mono); font-variant-numeric: tabular-nums; }
 
 /* ── Auth ─────────────────────────────────────────────────── */
 .pp-auth {
@@ -343,9 +456,10 @@ mark.point-hl:hover {
   flex: 1; text-align: center;
 }
 .pp-auth h3 {
-  font-size: 16px; font-weight: 600; margin-bottom: 4px; color: #222;
-  font-family: "Georgia", "Times New Roman", serif;
-  letter-spacing: 0.5px;
+  font-size: var(--point-text-xl); font-weight: 600; margin-bottom: 4px; color: #222;
+  font-family: var(--point-font-display) !important;
+  letter-spacing: -0.02em;
+  line-height: var(--point-leading-tight);
 }
 .pp-auth p { font-size: 13px; color: #999; margin-bottom: 20px; }
 .pp-auth input {
@@ -364,62 +478,85 @@ mark.point-hl:hover {
   margin-top: 4px;
 }
 .pp-auth button:hover { opacity: 0.85; }
+.pp-auth button:focus-visible {
+  outline: 2px solid var(--point-focus-ring);
+  outline-offset: 2px;
+}
 .pp-auth .pp-auth-error { color: #e85d5d; font-size: 12px; margin-bottom: 8px; }
 
 /* ── Section labels ───────────────────────────────────────── */
 .pp-section-label {
-  padding: 12px 22px 6px; font-size: 11px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.5px; color: #999;
+  padding: 12px 22px 6px; font-size: var(--point-text-sm); font-weight: 700;
+  text-transform: uppercase; letter-spacing: var(--point-track-caps); color: #999;
 }
 
 /* ── Friends ──────────────────────────────────────────────── */
 .pp-friend-row {
   display: flex; align-items: center; gap: 14px;
-  padding: 12px 22px; border-bottom: 1.5px solid #eee; transition: background 0.1s;
+  padding: 12px 22px; border-bottom: 1px solid #eee; transition: background 0.1s;
 }
 .pp-friend-row:hover { background: #f5f3ef; }
 .pp-friend-row .pp-fr-avatar, .pp-friend-request .pp-fr-avatar, .pp-friend-waiting .pp-fr-avatar {
   width: 34px; height: 34px; border-radius: 50%;
-  border: 2.5px solid #222; display: flex; align-items: center;
+  border: 1.5px solid #ccc; display: flex; align-items: center;
   justify-content: center; font-size: 14px; font-weight: 800;
   color: #222; background: var(--point-accent-bg); flex-shrink: 0;
 }
 .pp-friend-row .pp-fr-name, .pp-friend-request .pp-fr-name, .pp-friend-waiting .pp-fr-name {
   flex: 1; font-size: 14px; font-weight: 600;
 }
-.pp-friend-row .pp-fr-remove { all: unset; cursor: pointer; font-size: 16px; color: #ccc; transition: color 0.1s; }
+.pp-friend-row .pp-fr-remove { all: unset; cursor: pointer; font-size: 16px; color: #767676; transition: color 0.1s; min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; }
 .pp-friend-row .pp-fr-remove:hover { color: #e85d5d; }
+.pp-friend-row .pp-fr-remove:focus-visible {
+  outline: 2px solid var(--point-focus-ring);
+  outline-offset: 2px;
+}
 
 .pp-add-friend {
-  display: flex; gap: 10px; padding: 16px 20px; border-bottom: 2.5px solid #222;
+  display: flex; gap: 10px; padding: 16px 20px; border-bottom: 1px solid #eee; background: #f2f0ec;
 }
 .pp-add-friend input {
   flex: 1; padding: 12px 16px; font-size: 14px;
-  border: 2.5px solid #222; border-radius: 12px; background: #fff; color: #222; outline: none;
+  border: 1.5px solid #ddd; border-radius: 10px; background: #fff; color: #222; outline: none;
 }
 .pp-add-friend input::placeholder { color: #bbb; }
+.pp-add-friend input:focus { border-color: #999; }
 .pp-add-friend button {
   all: unset; padding: 12px 18px; font-size: 14px; font-weight: 700;
   border: 2.5px solid #222; border-radius: 12px; cursor: pointer; color: #222; transition: all 0.1s;
 }
 .pp-add-friend button:hover { background: #222; color: #faf8f4; }
+.pp-add-friend button:focus-visible {
+  outline: 2px solid var(--point-focus-ring);
+  outline-offset: 2px;
+}
 
 .pp-friend-request {
   display: flex; align-items: center; gap: 10px;
-  padding: 12px 22px; border-bottom: 1.5px solid #eee; background: var(--point-accent-bg);
+  padding: 12px 22px; border-bottom: 1px solid #eee; background: var(--point-accent-bg);
 }
 .pp-friend-request .pp-fr-avatar { border-color: var(--point-accent); }
 .pp-accept-btn {
-  all: unset; padding: 6px 14px; font-size: 12px; font-weight: 700;
+  all: unset; padding: 10px 16px; font-size: 12px; font-weight: 700;
   border: 2px solid var(--point-accent); border-radius: 10px; cursor: pointer; color: var(--point-accent); transition: all 0.1s;
+  min-height: 44px;
+  box-sizing: border-box;
 }
 .pp-accept-btn:hover { background: var(--point-accent); color: #fff; }
-.pp-reject-btn { all: unset; padding: 6px 8px; font-size: 14px; cursor: pointer; color: #ccc; transition: color 0.1s; }
+.pp-accept-btn:focus-visible {
+  outline: 2px solid var(--point-focus-ring);
+  outline-offset: 2px;
+}
+.pp-reject-btn { all: unset; padding: 10px 12px; font-size: 14px; cursor: pointer; color: #767676; transition: color 0.1s; min-width: 44px; min-height: 44px; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; }
 .pp-reject-btn:hover { color: #e85d5d; }
+.pp-reject-btn:focus-visible {
+  outline: 2px solid var(--point-focus-ring);
+  outline-offset: 2px;
+}
 
 .pp-friend-waiting {
   display: flex; align-items: center; gap: 10px;
-  padding: 12px 22px; border-bottom: 1.5px solid #eee; background: #fef9ee; border-left: 3px solid #f0c040;
+  padding: 12px 22px; border-bottom: 1px solid #eee; background: #fef9ee; border-left: 3px solid #f0c040;
 }
 .pp-friend-waiting .pp-fr-avatar { border-color: #f0c040; background: #fae6a0; }
 .pp-waiting-label {
@@ -428,13 +565,20 @@ mark.point-hl:hover {
 }
 
 /* ── Empty state ──────────────────────────────────────────── */
-.pp-empty { padding: 40px 28px; text-align: center; color: #bbb; font-size: 14px; line-height: 1.7; }
+.pp-empty { padding: 40px 28px; text-align: center; color: #bbb; font-size: var(--point-text-md); line-height: var(--point-leading-relaxed); font-family: var(--point-font-display) !important; }
+.pp-empty-title { color: #555; font-weight: 600; font-family: var(--point-font-sans) !important; }
+.pp-empty-hint { color: #888; font-size: var(--point-text-md); margin-top: 6px; font-family: var(--point-font-sans) !important; }
 
 /* ── Toast ────────────────────────────────────────────────── */
 #point-toast {
-  position: fixed; bottom: 84px; right: 20px; z-index: 2147483647;
-  background: #faf8f4; border: 2.5px solid #222; border-radius: 14px;
-  padding: 12px 16px; max-width: 300px;
+  position: fixed;
+  bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  right: max(12px, env(safe-area-inset-right, 0px));
+  z-index: 2147483647;
+  background: #faf8f4; border: 1px solid rgba(34,34,34,0.25); border-radius: 14px;
+  padding: 12px 16px;
+  max-width: min(300px, calc(100vw - 32px));
+  box-sizing: border-box;
   box-shadow: 0 4px 20px rgba(0,0,0,0.12);
   font-family: -apple-system, sans-serif; font-size: 13px; color: #222;
   display: none; animation: point-pop 0.2s ease-out;
@@ -444,23 +588,77 @@ mark.point-hl:hover {
 /* ── Page presence banner ─────────────────────────────────── */
 #point-presence {
   position: fixed;
-  top: 12px; right: 80px;
+  top: max(8px, env(safe-area-inset-top, 0px));
+  right: max(72px, env(safe-area-inset-right, 0px));
+  left: max(12px, env(safe-area-inset-left, 0px));
   z-index: 2147483646;
   display: flex; align-items: center; gap: 6px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  width: auto;
+  max-width: calc(100vw - 24px);
+  margin-left: auto;
   background: #faf8f4;
-  border: 1.5px solid #ddd;
+  border: 1px solid #e0ddd6;
   border-radius: 20px;
   padding: 5px 14px 5px 10px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   font-size: 12px;
   animation: point-pop 0.2s ease-out;
+  box-sizing: border-box;
 }
 .point-presence-name {
   font-weight: 600; cursor: pointer;
   transition: opacity 0.1s;
+  border-radius: 6px;
+  padding: 4px 2px;
 }
 .point-presence-name:hover { opacity: 0.7; }
+.point-presence-name:focus-visible {
+  outline: 2px solid var(--point-focus-ring);
+  outline-offset: 2px;
+}
+
+/* ── Responsive: narrow viewports (split view, small windows, phones) ─ */
+@media (max-width: 480px) {
+  .pp-thread-row {
+    padding: 12px 14px;
+    gap: 8px;
+  }
+  .pp-section-label {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .pp-empty {
+    padding: 28px 18px;
+  }
+  .pp-auth {
+    padding: 20px 16px;
+  }
+  .pp-friend-row,
+  .pp-friend-request,
+  .pp-friend-waiting {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .pp-add-friend {
+    padding: 12px 14px;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .pp-add-friend button {
+    flex: 1 1 auto;
+    min-width: min(100%, 120px);
+  }
+}
+@media (max-width: 360px) {
+  #point-presence {
+    right: 12px;
+    left: 12px;
+    justify-content: center;
+  }
+}
 
 /* ── Reset site CSS leaking into Point UI ─────────────────── */
 #point-tooltip *, .point-thread *, #point-toast * {
@@ -472,4 +670,19 @@ mark.point-hl:hover {
 @keyframes point-pop {
   from { opacity: 0; transform: translateY(8px) scale(0.97); }
   to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  mark.point-hl { transition: none; }
+  #point-tooltip,
+  #point-panel,
+  .point-thread,
+  #point-toast,
+  #point-presence,
+  #point-widget #point-fab {
+    animation: none !important;
+    transition: none !important;
+  }
+  #point-fab:hover {
+    transform: none;
+  }
 }

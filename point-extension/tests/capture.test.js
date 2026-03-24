@@ -92,18 +92,19 @@ const mockComments = [
 
 // Helper to set up extension injection + auth + API mocking
 async function setupTest(page, { auth = null, includeHighlights = false, includeFriends = false } = {}) {
-  // Always inject content script
-  await injectContentScript(page);
-
-  // Set up mock API routes
-  await mockApiRoutes(page, { auth, includeHighlights, includeFriends });
-
-  // Set up auth state if provided
+  // Set up auth state FIRST (before injecting content script)
+  // This ensures chrome.runtime mock is available when content.js calls init()
   if (auth) {
     await seedAuthState(page, { username: auth.user.username, color: auth.user.color, token: auth.token, apiBase: API_BASE });
   } else {
     await clearAuthState(page);
   }
+
+  // Then inject content script (which will see the chrome.runtime mock)
+  await injectContentScript(page);
+
+  // Set up mock API routes
+  await mockApiRoutes(page, { auth, includeHighlights, includeFriends });
 }
 
 // Helper to set up route mocking
@@ -151,7 +152,7 @@ async function mockApiRoutes(page, { auth = null, includeHighlights = false, inc
       return route.respond({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify(mockPages),
+        body: JSON.stringify(includeHighlights ? mockPages : []),
       });
     }
 
@@ -387,9 +388,8 @@ test.describe('Point Extension Screenshots', () => {
   });
 
   // 06: Panel Pages Populated
-  test.skip('06-panel-pages-populated', async ({ page }) => {
-    // TODO: Pages list not rendering - needs investigation into API mock setup
-    await setupTest(page, { auth: { user: mockUser, token: mockToken } });
+  test('06-panel-pages-populated', async ({ page }) => {
+    await setupTest(page, { auth: { user: mockUser, token: mockToken }, includeHighlights: true });
     await page.goto(fixtureUrl);
     await page.waitForSelector('#point-fab', { timeout: 5000 });
 
@@ -461,8 +461,7 @@ test.describe('Point Extension Screenshots', () => {
   });
 
   // 09: Tooltip with Friends
-  test.skip('09-tooltip-with-friends', async ({ page }) => {
-    // TODO: Tooltip friends not rendering - needs investigation into tooltip trigger mechanism
+  test('09-tooltip-with-friends', async ({ page }) => {
     await setupTest(page, {
       auth: { user: mockUser, token: mockToken },
       includeFriends: true,

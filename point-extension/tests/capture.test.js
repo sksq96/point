@@ -152,7 +152,7 @@ async function mockApiRoutes(page, { auth = null, includeHighlights = false, inc
       return route.respond({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify(includeHighlights ? mockPages : []),
+        body: JSON.stringify(mockPages),
       });
     }
 
@@ -389,7 +389,7 @@ test.describe('Point Extension Screenshots', () => {
 
   // 06: Panel Pages Populated
   test('06-panel-pages-populated', async ({ page }) => {
-    await setupTest(page, { auth: { user: mockUser, token: mockToken }, includeHighlights: true });
+    await setupTest(page, { auth: { user: mockUser, token: mockToken } });
     await page.goto(fixtureUrl);
     await page.waitForSelector('#point-fab', { timeout: 5000 });
 

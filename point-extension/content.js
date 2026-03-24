@@ -15,7 +15,9 @@
     return s.replace(/\/+$/, "");
   }
 
-  const PAGE_URL = location.href.split("#")[0];
+  function pageUrl() {
+    return location.href.split("#")[0];
+  }
 
   let panelOpen = false;
   let auth = null;
@@ -63,7 +65,20 @@
     const headers = { "Content-Type": "application/json" };
     if (auth?.token) headers["Authorization"] = `Bearer ${auth.token}`;
     const res = await fetch(`${apiBase}${path}`, { ...opts, headers });
-    const data = await res.json();
+    const text = await res.text();
+    let data = {};
+    if (text) {
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error("Invalid response from server");
+      }
+    }
+    if (res.status === 401) {
+      if (auth?.token) doLogout();
+      const message = typeof data.error === "string" ? data.error : "Session expired";
+      throw new Error(message);
+    }
     if (!res.ok) throw new Error(data.error || "request failed");
     return data;
   }
@@ -264,7 +279,7 @@
     const range = clampRange(sel.getRangeAt(0)); const text = sel.toString().trim(); if (!text) return;
 
     const rangeData = {
-      url: PAGE_URL,
+      url: pageUrl(),
       pageTitle: document.title,
       text,
       rangeStart: getXPath(range.startContainer),
@@ -283,7 +298,7 @@
           toUsername,
           text,
           message: `Pointed you to "${text.length > 80 ? text.slice(0, 80) + "..." : text}"`,
-          url: PAGE_URL,
+          url: pageUrl(),
           color: auth.user.color || "#4a7c6f",
         })}).catch(err => console.error("Point send failed:", err));
       }
@@ -326,6 +341,60 @@
     }
   }
 
+  let autoScrollDoneForPage = false;
+
+  function clearAllPointHighlights() {
+    const ids = new Set(
+      [...document.querySelectorAll("mark.point-hl[data-hl-id]")].map((m) => m.getAttribute("data-hl-id")).filter(Boolean),
+    );
+    ids.forEach(removeMarks);
+    closeThread();
+    document.getElementById("point-presence")?.remove();
+    autoScrollDoneForPage = false;
+  }
+
+  function scrollMarkIntoViewIfNeeded(mark) {
+    if (!mark) return;
+    const r = mark.getBoundingClientRect();
+    if (r.width <= 0 && r.height <= 0) return;
+    const margin = 40;
+    const vh = window.innerHeight;
+    if (r.top >= margin && r.bottom <= vh - margin) return;
+    mark.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+  }
+
+  function scheduleScrollAfterLayout(fn) {
+    requestAnimationFrame(() => requestAnimationFrame(fn));
+  }
+
+  let spaUrlHookInstalled = false;
+  function installSpaUrlHook() {
+    if (spaUrlHookInstalled) return;
+    spaUrlHookInstalled = true;
+    let lastUrl = pageUrl();
+    function onUrlMaybeChanged() {
+      const next = pageUrl();
+      if (next === lastUrl) return;
+      lastUrl = next;
+      if (auth?.token) {
+        clearAllPointHighlights();
+        loadPageHighlights();
+      }
+    }
+    const deferCheck = () => setTimeout(onUrlMaybeChanged, 0);
+    const push = history.pushState;
+    const replace = history.replaceState;
+    history.pushState = function (...args) {
+      push.apply(history, args);
+      deferCheck();
+    };
+    history.replaceState = function (...args) {
+      replace.apply(history, args);
+      deferCheck();
+    };
+    window.addEventListener("popstate", deferCheck);
+  }
+
   async function openThread(hlId, anchorMark) {
     closeThread();
 
@@ -354,7 +423,7 @@
     try {
       const [comments, highlights] = await Promise.all([
         apiCall("/comments/list", { method: "POST", body: JSON.stringify({ highlightId: hlId }) }),
-        apiCall("/highlights/page", { method: "POST", body: JSON.stringify({ url: PAGE_URL }) }),
+        apiCall("/highlights/page", { method: "POST", body: JSON.stringify({ url: pageUrl() }) }),
       ]);
 
       const hl = highlights.find(h => h.id === hlId);
@@ -410,10 +479,12 @@
   async function loadPageHighlights() {
     if (!auth?.token) return;
     try {
-      const highlights = await apiCall("/highlights/page", { method: "POST", body: JSON.stringify({ url: PAGE_URL }) });
+      const highlights = await apiCall("/highlights/page", { method: "POST", body: JSON.stringify({ url: pageUrl() }) });
       // Show presence banner for friends on this page
       const others = [...new Map(highlights.filter(h => !h.isMine).map(h => [h.username, h])).values()];
       updatePresenceBanner(others);
+      let firstNewMark = null;
+      let firstNewFriendMark = null;
       for (const h of highlights) {
         if (document.querySelector(`mark.point-hl[data-hl-id="${h.id}"]`)) continue;
         const s = resolveXP(h.rangeStart), e = resolveXP(h.rangeEnd);
@@ -422,8 +493,16 @@
           const range = document.createRange();
           range.setStart(s, h.rangeStartOffset);
           range.setEnd(e, h.rangeEndOffset);
-          wrapRange(range, h.id, h.color, h.username);
+          const marks = wrapRange(range, h.id, h.color, h.username);
+          if (marks.length === 0) continue;
+          if (!firstNewMark) firstNewMark = marks[0];
+          if (!h.isMine && !firstNewFriendMark) firstNewFriendMark = marks[0];
         } catch {}
+      }
+      const scrollTarget = firstNewFriendMark || firstNewMark;
+      if (scrollTarget && !autoScrollDoneForPage) {
+        autoScrollDoneForPage = true;
+        scheduleScrollAfterLayout(() => scrollMarkIntoViewIfNeeded(scrollTarget));
       }
     } catch {}
   }
@@ -570,7 +649,7 @@
     if (!auth?.token) return;
     try {
       const unread = await apiCall("/points/unread");
-      const pending = await apiCall("/friends/pending-count").catch(() => 0);
+      const pending = await apiCall("/friends/pending-count");
       const pendingNum = typeof pending === "number" ? pending : 0;
 
       if (seenPointIds === null) {
@@ -596,7 +675,9 @@
 
       // Red dot if anything unread
       showNotifDot(unread.length > 0 || pendingNum > 0);
-    } catch {}
+    } catch {
+      if (!auth?.token) return;
+    }
   }
 
   function doLogout() {
@@ -642,15 +723,21 @@
     } catch (e) { err.textContent = e.message; err.style.display = "block"; }
   }
 
-  async function loadFriends() { try { friends = await apiCall("/friends"); } catch { friends = []; } }
+  async function loadFriends() {
+    try {
+      friends = await apiCall("/friends");
+    } catch {
+      if (auth?.token) friends = [];
+    }
+  }
 
   // ── Pages view (all conversations) ───────────────────────────────
   async function renderPages() {
     if (!document.getElementById("pp-body")) return;
     try {
       const [pages, pending] = await Promise.all([
-        apiCall("/highlights/pages").catch(() => []),
-        apiCall("/friends/pending-count").catch(() => 0),
+        apiCall("/highlights/pages"),
+        apiCall("/friends/pending-count"),
       ]);
       const body = document.getElementById("pp-body"); if (!body) return;
       updateBadge(typeof pending === "number" ? pending : 0);
@@ -681,11 +768,15 @@
       body.querySelectorAll(".pp-thread-row").forEach(el => {
         el.addEventListener("click", () => {
           const url = el.dataset.url;
-          if (url === PAGE_URL) { togglePanel(); }
+          if (url === pageUrl()) { togglePanel(); }
           else window.open(url, "_blank");
         });
       });
-    } catch { const b = document.getElementById("pp-body"); if (b) b.innerHTML = `<div class="pp-empty">Could not load pages.</div>`; }
+    } catch {
+      if (!auth?.token) return;
+      const b = document.getElementById("pp-body");
+      if (b) b.innerHTML = `<div class="pp-empty">Could not load pages.</div>`;
+    }
   }
 
   // ── Friends view ─────────────────────────────────────────────────
@@ -696,7 +787,9 @@
       const [pending, sent] = await Promise.all([apiCall("/friends/pending"), apiCall("/friends/sent")]);
       if (pending.length > 0) pendingHtml = `<div class="pp-section-label">Requests</div>` + pending.map(r => `<div class="pp-friend-request"><div class="pp-fr-avatar" style="background:${r.color}20;border-color:${r.color};color:${r.color}">${escapeHtml(r.fromUsername.charAt(0).toUpperCase())}</div><div class="pp-fr-name" style="color:${r.color}">${escapeHtml(r.fromUsername)}</div><button class="pp-accept-btn" data-rid="${r.id}">Accept</button><button class="pp-reject-btn" data-rid="${r.id}">&times;</button></div>`).join("");
       if (sent.length > 0) sentHtml = `<div class="pp-section-label">Waiting</div>` + sent.map(r => `<div class="pp-friend-waiting"><div class="pp-fr-avatar" style="background:${r.color}20;border-color:${r.color};color:${r.color}">${escapeHtml(r.toUsername.charAt(0).toUpperCase())}</div><div class="pp-fr-name" style="color:${r.color}">${escapeHtml(r.toUsername)}</div><div class="pp-waiting-label">pending</div></div>`).join("");
-    } catch {}
+    } catch {
+      if (!auth?.token) return;
+    }
 
     body.innerHTML = `
       <div class="pp-add-friend"><input type="text" id="pp-add-input" placeholder="Add friend by username..." /><button id="pp-add-btn">Send</button></div>
@@ -749,6 +842,7 @@
   }
 
   async function init() {
+    installSpaUrlHook();
     await loadApiBase();
     sendMsg({ type: "GET_AUTH" }, (saved) => {
       if (saved?.token) {

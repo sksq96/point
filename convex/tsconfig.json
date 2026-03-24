@@ -20,6 +20,6 @@
     "isolatedModules": true,
     "noEmit": true
   },
-  "include": ["./**/*"],
+  "include": ["./**/*", "../tests/**/*.ts"],
   "exclude": ["./_generated"]
 }

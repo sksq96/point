@@ -26,13 +26,13 @@ export default tseslint.config(
   },
   ...tseslint.configs.recommended.map((c) => ({
     ...c,
-    files: ["convex/**/*.ts"],
+    files: ["convex/**/*.ts", "tests/**/*.ts"],
   })),
   {
-    files: ["convex/**/*.ts"],
+    files: ["convex/**/*.ts", "tests/**/*.ts"],
     languageOptions: {
       parserOptions: {
-        projectService: true,
+        project: ["./convex/tsconfig.json"],
         tsconfigRootDir: import.meta.dirname,
       },
     },

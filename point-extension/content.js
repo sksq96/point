@@ -15,7 +15,9 @@
     return s.replace(/\/+$/, "");
   }
 
-  const PAGE_URL = location.href.split("#")[0];
+  function pageUrl() {
+    return location.href.split("#")[0];
+  }
 
   let panelOpen = false;
   let auth = null;
@@ -264,7 +266,7 @@
     const range = clampRange(sel.getRangeAt(0)); const text = sel.toString().trim(); if (!text) return;
 
     const rangeData = {
-      url: PAGE_URL,
+      url: pageUrl(),
       pageTitle: document.title,
       text,
       rangeStart: getXPath(range.startContainer),
@@ -283,7 +285,7 @@
           toUsername,
           text,
           message: `Pointed you to "${text.length > 80 ? text.slice(0, 80) + "..." : text}"`,
-          url: PAGE_URL,
+          url: pageUrl(),
           color: auth.user.color || "#4a7c6f",
         })}).catch(err => console.error("Point send failed:", err));
       }
@@ -326,6 +328,60 @@
     }
   }
 
+  let autoScrollDoneForPage = false;
+
+  function clearAllPointHighlights() {
+    const ids = new Set(
+      [...document.querySelectorAll("mark.point-hl[data-hl-id]")].map((m) => m.getAttribute("data-hl-id")).filter(Boolean),
+    );
+    ids.forEach(removeMarks);
+    closeThread();
+    document.getElementById("point-presence")?.remove();
+    autoScrollDoneForPage = false;
+  }
+
+  function scrollMarkIntoViewIfNeeded(mark) {
+    if (!mark) return;
+    const r = mark.getBoundingClientRect();
+    if (r.width <= 0 && r.height <= 0) return;
+    const margin = 40;
+    const vh = window.innerHeight;
+    if (r.top >= margin && r.bottom <= vh - margin) return;
+    mark.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+  }
+
+  function scheduleScrollAfterLayout(fn) {
+    requestAnimationFrame(() => requestAnimationFrame(fn));
+  }
+
+  let spaUrlHookInstalled = false;
+  function installSpaUrlHook() {
+    if (spaUrlHookInstalled) return;
+    spaUrlHookInstalled = true;
+    let lastUrl = pageUrl();
+    function onUrlMaybeChanged() {
+      const next = pageUrl();
+      if (next === lastUrl) return;
+      lastUrl = next;
+      if (auth?.token) {
+        clearAllPointHighlights();
+        loadPageHighlights();
+      }
+    }
+    const deferCheck = () => setTimeout(onUrlMaybeChanged, 0);
+    const push = history.pushState;
+    const replace = history.replaceState;
+    history.pushState = function (...args) {
+      push.apply(history, args);
+      deferCheck();
+    };
+    history.replaceState = function (...args) {
+      replace.apply(history, args);
+      deferCheck();
+    };
+    window.addEventListener("popstate", deferCheck);
+  }
+
   async function openThread(hlId, anchorMark) {
     closeThread();
 
@@ -354,7 +410,7 @@
     try {
       const [comments, highlights] = await Promise.all([
         apiCall("/comments/list", { method: "POST", body: JSON.stringify({ highlightId: hlId }) }),
-        apiCall("/highlights/page", { method: "POST", body: JSON.stringify({ url: PAGE_URL }) }),
+        apiCall("/highlights/page", { method: "POST", body: JSON.stringify({ url: pageUrl() }) }),
       ]);
 
       const hl = highlights.find(h => h.id === hlId);
@@ -410,10 +466,12 @@
   async function loadPageHighlights() {
     if (!auth?.token) return;
     try {
-      const highlights = await apiCall("/highlights/page", { method: "POST", body: JSON.stringify({ url: PAGE_URL }) });
+      const highlights = await apiCall("/highlights/page", { method: "POST", body: JSON.stringify({ url: pageUrl() }) });
       // Show presence banner for friends on this page
       const others = [...new Map(highlights.filter(h => !h.isMine).map(h => [h.username, h])).values()];
       updatePresenceBanner(others);
+      let firstNewMark = null;
+      let firstNewFriendMark = null;
       for (const h of highlights) {
         if (document.querySelector(`mark.point-hl[data-hl-id="${h.id}"]`)) continue;
         const s = resolveXP(h.rangeStart), e = resolveXP(h.rangeEnd);
@@ -422,8 +480,16 @@
           const range = document.createRange();
           range.setStart(s, h.rangeStartOffset);
           range.setEnd(e, h.rangeEndOffset);
-          wrapRange(range, h.id, h.color, h.username);
+          const marks = wrapRange(range, h.id, h.color, h.username);
+          if (marks.length === 0) continue;
+          if (!firstNewMark) firstNewMark = marks[0];
+          if (!h.isMine && !firstNewFriendMark) firstNewFriendMark = marks[0];
         } catch {}
+      }
+      const scrollTarget = firstNewFriendMark || firstNewMark;
+      if (scrollTarget && !autoScrollDoneForPage) {
+        autoScrollDoneForPage = true;
+        scheduleScrollAfterLayout(() => scrollMarkIntoViewIfNeeded(scrollTarget));
       }
     } catch {}
   }
@@ -681,7 +747,7 @@
       body.querySelectorAll(".pp-thread-row").forEach(el => {
         el.addEventListener("click", () => {
           const url = el.dataset.url;
-          if (url === PAGE_URL) { togglePanel(); }
+          if (url === pageUrl()) { togglePanel(); }
           else window.open(url, "_blank");
         });
       });
@@ -749,6 +815,7 @@
   }
 
   async function init() {
+    installSpaUrlHook();
     await loadApiBase();
     sendMsg({ type: "GET_AUTH" }, (saved) => {
       if (saved?.token) {

@@ -9,6 +9,14 @@ function stripTrailingSlashes(s) {
   return s.replace(/\/+$/, "");
 }
 
+function resolveApiBaseUrl(stored, fallback) {
+  const a = typeof stored === "string" ? stored.trim() : "";
+  const b = typeof fallback === "string" ? fallback.trim() : "";
+  if (isValidHttpUrl(a)) return stripTrailingSlashes(a);
+  if (isValidHttpUrl(b)) return stripTrailingSlashes(b);
+  return "";
+}
+
 function getHighlightsMap(callback) {
   chrome.storage.local.get(["highlights"], (result) => {
     callback(result.highlights || {});
@@ -66,23 +74,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     if (message.type === "GET_API_BASE") {
       chrome.storage.local.get(["pointApiBase"], (result) => {
-        const stored = result.pointApiBase;
-        const t = typeof stored === "string" ? stored.trim() : "";
-        const def = typeof globalThis.POINT_API_BASE === "string" ? globalThis.POINT_API_BASE : "";
-        const url = isValidHttpUrl(t) ? stripTrailingSlashes(t) : stripTrailingSlashes(def);
-        sendResponse({ url });
+        const fallback =
+          typeof globalThis.POINT_API_BASE === "string" ? globalThis.POINT_API_BASE : "";
+        sendResponse({ url: resolveApiBaseUrl(result.pointApiBase, fallback) });
       });
       return true;
     }
 
     if (message.type === "SET_API_BASE") {
-      const raw = message.url;
-      const t = typeof raw === "string" ? raw.trim() : "";
-      if (!isValidHttpUrl(t)) {
+      const trimmed = typeof message.url === "string" ? message.url.trim() : "";
+      if (!isValidHttpUrl(trimmed)) {
         sendResponse({ success: false, error: "invalid url" });
         return true;
       }
-      const url = stripTrailingSlashes(t);
+      const url = stripTrailingSlashes(trimmed);
       chrome.storage.local.set({ pointApiBase: url }, () => sendResponse({ success: true, url }));
       return true;
     }

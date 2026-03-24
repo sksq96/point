@@ -7,6 +7,14 @@
   let apiBase = null;
   let apiBaseLoadPromise = null;
 
+  function isValidHttpUrl(s) {
+    return typeof s === "string" && (s.startsWith("http://") || s.startsWith("https://"));
+  }
+
+  function stripTrailingSlashes(s) {
+    return s.replace(/\/+$/, "");
+  }
+
   const PAGE_URL = location.href.split("#")[0];
 
   let panelOpen = false;
@@ -27,9 +35,12 @@
     if (!apiBaseLoadPromise) {
       apiBaseLoadPromise = new Promise((resolve) => {
         sendMsg({ type: "GET_API_BASE" }, (r) => {
-          const u = r?.url;
-          const def = typeof globalThis.POINT_API_BASE === "string" ? globalThis.POINT_API_BASE : "";
-          apiBase = (typeof u === "string" ? u : def).replace(/\/+$/, "");
+          const stored = typeof r?.url === "string" ? r.url.trim() : "";
+          const fallback =
+            typeof globalThis.POINT_API_BASE === "string" ? globalThis.POINT_API_BASE.trim() : "";
+          const raw = stored !== "" ? stored : fallback;
+          const normalized = stripTrailingSlashes(raw);
+          apiBase = isValidHttpUrl(normalized) ? normalized : "";
           resolve();
         });
       });
@@ -46,6 +57,9 @@
 
   async function apiCall(path, opts = {}) {
     await loadApiBase();
+    if (!isValidHttpUrl(apiBase)) {
+      throw new Error("Point API base URL missing or invalid — check api-config or storage.");
+    }
     const headers = { "Content-Type": "application/json" };
     if (auth?.token) headers["Authorization"] = `Bearer ${auth.token}`;
     const res = await fetch(`${apiBase}${path}`, { ...opts, headers });
@@ -514,7 +528,7 @@
     refreshActiveThread();
   }
 
-  /** Single interval while logged in (avoids duplicate timers with panel open). Cleared on logout only. */
+  // One poll interval while logged in; cleared on logout.
   function ensureAuthPollTimer() {
     if (!auth || livePollTimer) return;
     livePollTimer = setInterval(authPollTick, 4000);

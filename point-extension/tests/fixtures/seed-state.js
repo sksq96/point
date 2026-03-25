@@ -37,7 +37,8 @@ export async function seedAuthState(page, options = {}) {
   };
 
   const [setupFunc, args] = getChromeRuntimeMock(authState, apiBase);
-  await page.addInitScript(setupFunc, ...args);
+  // args is already an object { authState, apiBase }
+  await page.addInitScript(setupFunc, args);
 }
 
 /**
@@ -50,7 +51,7 @@ export async function seedAuthState(page, options = {}) {
 export async function clearAuthState(page) {
   // Inject a chrome mock with no auth state
   const [setupFunc, args] = getChromeRuntimeMock({}, '');
-  await page.addInitScript(setupFunc, ...args);
+  await page.addInitScript(setupFunc, args);
 
   // Also clear localStorage as backup
   await page.addInitScript(() => {

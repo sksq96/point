@@ -9,12 +9,16 @@
  *
  * This is called via page.addInitScript and has access to injected variables
  *
- * @param {Object} authState - Authentication state (injected by Playwright)
- * @param {Object} authState.user - User object with id, username, color
- * @param {string} authState.token - Session token
- * @param {string} apiBaseUrl - API base URL
+ * @param {Object} config - Configuration object
+ * @param {Object} config.authState - Authentication state (injected by Playwright)
+ * @param {Object} config.authState.user - User object with id, username, color
+ * @param {string} config.authState.token - Session token
+ * @param {string} config.apiBase - API base URL
  */
-function setupChromeMock(authState, apiBaseUrl) {
+function setupChromeMock(config) {
+  const authState = config?.authState || {};
+  const apiBaseUrl = config?.apiBase || '';
+
   // Only use provided auth if it has both user and token
   const hasAuth = authState?.user && authState?.token;
   const user = authState?.user;
@@ -94,7 +98,7 @@ function setupChromeMock(authState, apiBaseUrl) {
  * @returns {Array} [setupFunction, args] tuple
  */
 export function getChromeRuntimeMock(authState = {}, apiBase = '') {
-  return [setupChromeMock, [authState, apiBase]];
+  return [setupChromeMock, { authState, apiBase }];
 }
 
 export default getChromeRuntimeMock;

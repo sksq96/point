@@ -91,7 +91,7 @@ const mockComments = [
 ];
 
 // Helper to set up extension injection + auth + API mocking
-async function setupTest(page, { auth = null, includeHighlights = false, includeFriends = false } = {}) {
+async function setupTest(page, { auth = null, includeHighlights = false, includeFriends = false, includePages = false } = {}) {
   // Set up auth state FIRST (before injecting content script)
   // This ensures chrome.runtime mock is available when content.js calls init()
   if (auth) {
@@ -104,11 +104,11 @@ async function setupTest(page, { auth = null, includeHighlights = false, include
   await injectContentScript(page);
 
   // Set up mock API routes
-  await mockApiRoutes(page, { auth, includeHighlights, includeFriends });
+  await mockApiRoutes(page, { auth, includeHighlights, includeFriends, includePages });
 }
 
 // Helper to set up route mocking
-async function mockApiRoutes(page, { auth = null, includeHighlights = false, includeFriends = false } = {}) {
+async function mockApiRoutes(page, { auth = null, includeHighlights = false, includeFriends = false, includePages = false } = {}) {
   await page.route(`${API_BASE}/**`, async (route) => {
     const url = new URL(route.request().url());
     const pathname = url.pathname;
@@ -128,7 +128,7 @@ async function mockApiRoutes(page, { auth = null, includeHighlights = false, inc
 
     // Highlights endpoints
     if (pathname === '/highlights/create') {
-      return route.respond({
+      return route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
@@ -141,7 +141,7 @@ async function mockApiRoutes(page, { auth = null, includeHighlights = false, inc
     }
 
     if (pathname === '/highlights/page') {
-      return route.respond({
+      return route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify(includeHighlights ? mockHighlights : []),
@@ -149,15 +149,15 @@ async function mockApiRoutes(page, { auth = null, includeHighlights = false, inc
     }
 
     if (pathname === '/highlights/pages') {
-      return route.respond({
+      return route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify(mockPages),
+        body: JSON.stringify(includePages ? mockPages : []),
       });
     }
 
     if (pathname === '/highlights/remove') {
-      return route.respond({
+      return route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({ success: true }),
@@ -166,7 +166,7 @@ async function mockApiRoutes(page, { auth = null, includeHighlights = false, inc
 
     // Comments endpoints
     if (pathname === '/comments/list') {
-      return route.respond({
+      return route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify(mockComments),
@@ -174,7 +174,7 @@ async function mockApiRoutes(page, { auth = null, includeHighlights = false, inc
     }
 
     if (pathname === '/comments/add') {
-      return route.respond({
+      return route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
@@ -189,7 +189,7 @@ async function mockApiRoutes(page, { auth = null, includeHighlights = false, inc
 
     // Friends endpoints
     if (pathname === '/friends') {
-      return route.respond({
+      return route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify(includeFriends ? mockFriends : []),
@@ -197,7 +197,7 @@ async function mockApiRoutes(page, { auth = null, includeHighlights = false, inc
     }
 
     if (pathname === '/friends/pending') {
-      return route.respond({
+      return route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify(mockPendingRequests),
@@ -205,7 +205,7 @@ async function mockApiRoutes(page, { auth = null, includeHighlights = false, inc
     }
 
     if (pathname === '/friends/sent') {
-      return route.respond({
+      return route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify(mockSentRequests),
@@ -213,7 +213,7 @@ async function mockApiRoutes(page, { auth = null, includeHighlights = false, inc
     }
 
     if (pathname === '/friends/pending-count') {
-      return route.respond({
+      return route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify(mockPendingRequests.length),
@@ -221,7 +221,7 @@ async function mockApiRoutes(page, { auth = null, includeHighlights = false, inc
     }
 
     if (pathname === '/friends/accept' || pathname === '/friends/reject' || pathname === '/friends/remove' || pathname === '/friends/request') {
-      return route.respond({
+      return route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({ success: true, message: 'Done' }),
@@ -230,7 +230,7 @@ async function mockApiRoutes(page, { auth = null, includeHighlights = false, inc
 
     // Points endpoints
     if (pathname === '/points/send') {
-      return route.respond({
+      return route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({ id: 'point-new', success: true }),
@@ -238,7 +238,7 @@ async function mockApiRoutes(page, { auth = null, includeHighlights = false, inc
     }
 
     if (pathname === '/points/unread') {
-      return route.respond({
+      return route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify([
@@ -254,7 +254,7 @@ async function mockApiRoutes(page, { auth = null, includeHighlights = false, inc
     }
 
     if (pathname === '/points/read') {
-      return route.respond({
+      return route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({ success: true }),
@@ -389,7 +389,7 @@ test.describe('Point Extension Screenshots', () => {
 
   // 06: Panel Pages Populated
   test('06-panel-pages-populated', async ({ page }) => {
-    await setupTest(page, { auth: { user: mockUser, token: mockToken } });
+    await setupTest(page, { auth: { user: mockUser, token: mockToken }, includePages: true });
     await page.goto(fixtureUrl);
     await page.waitForSelector('#point-fab', { timeout: 5000 });
 
@@ -479,8 +479,11 @@ test.describe('Point Extension Screenshots', () => {
         range.selectNodeContents(paragraph);
         sel.removeAllRanges();
         sel.addRange(range);
-        // Dispatch mouseup to trigger tooltip
-        document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+        // Dispatch mouseup to trigger tooltip with bubbling
+        const event = new MouseEvent('mouseup', { bubbles: true, cancelable: true });
+        document.dispatchEvent(event);
+        // Also try dispatching on the paragraph itself
+        paragraph.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }));
       }
     });
 

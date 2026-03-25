@@ -52,7 +52,7 @@
 
   function escapeHtml(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
   function timeAgo(d) {
-    const ms = typeof d === "number" ? d : new Date(d).getTime();
+    const ms = d instanceof Date ? d.getTime() : d;
     const m = Math.floor((Date.now() - ms) / 60000);
     if (m < 1) return "now"; if (m < 60) return `${m}m`; const h = Math.floor(m / 60); if (h < 24) return `${h}h`; return `${Math.floor(h / 24)}d`;
   }
@@ -65,19 +65,10 @@
     const headers = { "Content-Type": "application/json" };
     if (auth?.token) headers["Authorization"] = `Bearer ${auth.token}`;
     const res = await fetch(`${apiBase}${path}`, { ...opts, headers });
-    const text = await res.text();
-    let data = {};
-    if (text) {
-      try {
-        data = JSON.parse(text);
-      } catch {
-        throw new Error("Invalid response from server");
-      }
-    }
+    const data = await res.json();
     if (res.status === 401) {
       if (auth?.token) doLogout();
-      const message = typeof data.error === "string" ? data.error : "Session expired";
-      throw new Error(message);
+      throw new Error(data.error || "Session expired");
     }
     if (!res.ok) throw new Error(data.error || "request failed");
     return data;
@@ -100,7 +91,6 @@
       m.className = "point-hl";
       m.dataset.hlId = hlId;
       m.title = `@${username}`;
-      // Detect light vs dark background
       requestAnimationFrame(() => {
         let el = m.parentElement || document.body;
         let bg = "rgb(255,255,255)";
@@ -119,9 +109,6 @@
           m.style.borderBottom = `2px solid ${color}`;
         }
       });
-      // Default to light mode styling
-      m.style.backgroundColor = color + "25";
-      m.style.borderBottom = `2px solid ${color}`;
       return m;
     }
     if (range.startContainer === range.endContainer) {
@@ -138,8 +125,19 @@
         } catch {}
       }
     }
-    // Click to open thread
-    marks.forEach(m => m.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); openThread(hlId, m); }));
+    marks.forEach(m => {
+      const activate = (e) => { e.preventDefault(); e.stopPropagation(); openThread(hlId, m); };
+      m.addEventListener("click", activate);
+      m.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          activate(e);
+        }
+      });
+      m.setAttribute("tabindex", "0");
+      m.setAttribute("role", "button");
+      m.setAttribute("aria-label", `Open thread for highlight by @${username}`);
+    });
     return marks;
   }
 
@@ -154,17 +152,14 @@
     let dragging = false, hasMoved = false, startLeft, startTop, startX, startY;
     const handle = el.querySelector(".point-drag-handle") || el;
 
-    // Restore saved position
     if (saveKey) {
-      try {
-        const saved = JSON.parse(localStorage.getItem("point-pos-" + saveKey));
-        if (saved) {
-          el.style.top = saved.top + "px";
-          el.style.left = saved.left + "px";
-          el.style.right = "auto";
-          el.style.bottom = "auto";
-        }
-      } catch {}
+      const saved = JSON.parse(localStorage.getItem("point-pos-" + saveKey) || "null");
+      if (saved) {
+        el.style.top = saved.top + "px";
+        el.style.left = saved.left + "px";
+        el.style.right = "auto";
+        el.style.bottom = "auto";
+      }
     }
 
     handle.addEventListener("mousedown", e => {
